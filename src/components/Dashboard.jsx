@@ -318,6 +318,9 @@ export default function Dashboard({ onStartStudy, flashcards, isLoading, fetchEr
   const [dragOverMateria, setDragOverMateria] = useState(null);
   const [importStatus, setImportStatus] = useState(null); // { current, total }
   const [showImportModal, setShowImportModal] = useState(false);
+  const [showBulkConfigModal, setShowBulkConfigModal] = useState(false);
+  const [bulkConfigState, setBulkConfigState] = useState({ proximaRevisao: '', feedback: '' });
+  const [bulkUpdateStatus, setBulkUpdateStatus] = useState(null); // { current, total }
   const [importText, setImportText] = useState("");
   const [importMeta, setImportMeta] = useState({
     deck: "",
@@ -368,6 +371,33 @@ export default function Dashboard({ onStartStudy, flashcards, isLoading, fetchEr
       Object.entries(map).map(([m, tSet]) => [m, Array.from(tSet).sort()])
     );
   }, [flashcards]);
+
+  const handleBulkUpdate = async () => {
+    if (!bulkConfigState.proximaRevisao && !bulkConfigState.feedback) {
+      return alert("Preencha ao menos um campo para atualizar.");
+    }
+    
+    setShowBulkConfigModal(false);
+    setBulkUpdateStatus({ current: 0, total: flashcards.length });
+    
+    const updates = {};
+    if (bulkConfigState.proximaRevisao) updates.proximaRevisao = bulkConfigState.proximaRevisao;
+    if (bulkConfigState.feedback) updates.feedback = bulkConfigState.feedback;
+
+    let count = 0;
+    for (const card of flashcards) {
+      // updateCardInNotion from notionService handles the API call
+      // Implemented an artificial delay of 350ms to respect Notion's 3 requests/sec rate limit
+      await import('../services/notionService').then(m => m.updateCardInNotion(card.id, updates));
+      await new Promise(r => setTimeout(r, 350));
+      count++;
+      setBulkUpdateStatus({ current: count, total: flashcards.length });
+    }
+    
+    setBulkUpdateStatus(null);
+    alert(`Sucesso! ${count} cartões atualizados.`);
+    window.location.reload();
+  };
 
   const totalCards = flashcards?.length || 0;
   const cardsReadyToday = useMemo(() => flashcards?.filter(c => isReadyForToday(c.proximaRevisao)).length || 0, [flashcards]);
@@ -430,6 +460,9 @@ export default function Dashboard({ onStartStudy, flashcards, isLoading, fetchEr
         
         <div className="header-actions">
           <div className="data-management-bar">
+            <button className="mgmt-btn" onClick={() => setShowBulkConfigModal(true)} title="Ajuste Rápido de Todos os Cartões">
+              <span className="btn-icon">⚙️</span> Ajuste em Massa
+            </button>
             <button className="mgmt-btn" onClick={() => setShowImportModal(true)} title="Importar via Texto">
               <span className="btn-icon">📥</span> Importar
             </button>
@@ -463,10 +496,101 @@ export default function Dashboard({ onStartStudy, flashcards, isLoading, fetchEr
             </div>
             <p className="progress-text">{importStatus.current} de {importStatus.total} cartões</p>
             <span className="loader-sm"></span>
-            <p className="progress-subtext">Por favor, mantenha esta aba aberta.</p>
+            <p className="progress-subtext">Isso pode levar alguns minutos.</p>
           </div>
         </div>
       )}
+
+      {bulkUpdateStatus && (
+        <div className="import-overlay">
+          <div className="import-progress-card glass-panel">
+            <h3>Atualizando Cartões em Massa...</h3>
+            <div className="progress-track">
+              <motion.div 
+                className="progress-fill"
+                initial={{ width: 0 }}
+                animate={{ width: `${(bulkUpdateStatus.current / bulkUpdateStatus.total) * 100}%` }}
+                transition={{ type: "spring", bounce: 0, duration: 0.5 }}
+              />
+            </div>
+            <p className="progress-text">{bulkUpdateStatus.current} de {bulkUpdateStatus.total} cartões atualizados</p>
+            <span className="loader-sm"></span>
+            <p className="progress-subtext">Aguarde, respeitando o limite de requisições do Notion.</p>
+          </div>
+        </div>
+      )}
+
+      <AnimatePresence>
+        {showBulkConfigModal && (
+          <div className="import-modal-overlay">
+            <motion.div 
+              className="import-modal glass-panel"
+              style={{ maxWidth: '500px' }}
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+            >
+              <div className="modal-header">
+                <h2>Configuração em Massa</h2>
+                <button className="close-modal" onClick={() => setShowBulkConfigModal(false)}>✕</button>
+              </div>
+
+              <div className="modal-body" style={{ padding: '0', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                <p style={{ color: 'var(--text-dim)', fontSize: '0.9rem', marginBottom: '10px' }}>
+                  Altere a Próxima Revisão e o Nível (Feedback) de <strong>TODOS ({totalCards})</strong> os seus cartões de uma vez. Mantenha em branco para não alterar.
+                </p>
+
+                <div className="input-field" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  <label style={{ fontSize: '0.85rem', fontWeight: 600, color: 'white' }}>Data da Próxima Revisão</label>
+                  <input 
+                    type="date"
+                    style={{ padding: '12px', borderRadius: '12px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'white', colorScheme: 'dark' }}
+                    value={bulkConfigState.proximaRevisao}
+                    onChange={e => setBulkConfigState({ ...bulkConfigState, proximaRevisao: e.target.value })}
+                  />
+                  <div style={{ display: 'flex', gap: '10px', marginTop: '5px' }}>
+                    <button 
+                      style={{ fontSize: '0.75rem', padding: '4px 12px', borderRadius: '6px', cursor: 'pointer', background: 'rgba(99,102,241,0.2)', border: '1px solid rgba(99,102,241,0.5)', color: '#a5b4fc' }}
+                      onClick={() => setBulkConfigState({ ...bulkConfigState, proximaRevisao: new Date().toISOString().split('T')[0] })}
+                    >Para Hoje</button>
+                    <button 
+                      style={{ fontSize: '0.75rem', padding: '4px 12px', borderRadius: '6px', cursor: 'pointer', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.2)', color: 'white' }}
+                      onClick={() => setBulkConfigState({ ...bulkConfigState, proximaRevisao: '' })}
+                    >Limpar</button>
+                  </div>
+                </div>
+
+                <div className="input-field" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  <label style={{ fontSize: '0.85rem', fontWeight: 600, color: 'white' }}>Nível do Cartão (Feedback)</label>
+                  <select 
+                    style={{ padding: '12px', borderRadius: '12px', background: 'rgba(15, 15, 20, 0.9)', border: '1px solid rgba(255,255,255,0.1)', color: 'white' }}
+                    value={bulkConfigState.feedback || ''}
+                    onChange={e => setBulkConfigState({ ...bulkConfigState, feedback: e.target.value })}
+                  >
+                    <option value="">-- Não Alterar --</option>
+                    <option value="Esqueci">Recomeçar (Esqueci)</option>
+                    <option value="Aprendendo">Aprendendo</option>
+                    <option value="Parcial">Sei, mas não tudo (Parcial)</option>
+                    <option value="Esforço">Demorei, mas acertei (Esforço)</option>
+                    <option value="Dominado">Excelente (Dominado)</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="modal-footer" style={{ marginTop: '10px' }}>
+                <button className="cancel-btn" onClick={() => setShowBulkConfigModal(false)}>Cancelar</button>
+                <button 
+                  className="primary-study-btn" 
+                  style={{ padding: '12px 24px', fontSize: '0.95rem' }}
+                  onClick={handleBulkUpdate}
+                >
+                  Aplicar aos {totalCards} Cartões
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
       <AnimatePresence>
         {showImportModal && (
