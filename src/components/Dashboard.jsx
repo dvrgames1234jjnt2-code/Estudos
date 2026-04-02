@@ -548,13 +548,13 @@ export default function Dashboard({ onStartStudy, flashcards, isLoading, fetchEr
                     value={bulkConfigState.proximaRevisao}
                     onChange={e => setBulkConfigState({ ...bulkConfigState, proximaRevisao: e.target.value })}
                   />
-                  <div style={{ display: 'flex', gap: '10px', marginTop: '5px' }}>
+                  <div style={{ display: 'flex', gap: '10px', marginTop: '5px', flexWrap: 'wrap' }}>
                     <button 
-                      style={{ fontSize: '0.75rem', padding: '4px 12px', borderRadius: '6px', cursor: 'pointer', background: 'rgba(99,102,241,0.2)', border: '1px solid rgba(99,102,241,0.5)', color: '#a5b4fc' }}
+                      style={{ flex: '1 1 auto', fontSize: '0.75rem', padding: '10px 12px', borderRadius: '6px', cursor: 'pointer', background: 'rgba(99,102,241,0.2)', border: '1px solid rgba(99,102,241,0.5)', color: '#a5b4fc' }}
                       onClick={() => setBulkConfigState({ ...bulkConfigState, proximaRevisao: new Date().toISOString().split('T')[0] })}
                     >Para Hoje</button>
                     <button 
-                      style={{ fontSize: '0.75rem', padding: '4px 12px', borderRadius: '6px', cursor: 'pointer', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.2)', color: 'white' }}
+                      style={{ flex: '1 1 auto', fontSize: '0.75rem', padding: '10px 12px', borderRadius: '6px', cursor: 'pointer', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.2)', color: 'white' }}
                       onClick={() => setBulkConfigState({ ...bulkConfigState, proximaRevisao: '' })}
                     >Limpar</button>
                   </div>

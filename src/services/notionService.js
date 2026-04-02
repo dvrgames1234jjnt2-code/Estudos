@@ -8,6 +8,7 @@
  */
 
 const NOTION_DATABASE_ID = '332885d5-a0e3-8083-bacb-d7298cedf9fb';
+const CONFIG_DATABASE_ID = '332885d5-a0e3-809f-a459-ea05d36a3c5e';
 
 // Retorna os headers padrão necessários para a API do Notion
 function getHeaders() {
@@ -88,6 +89,9 @@ export function parseNotionCard(page) {
     // Novos campos solicitados
     tipo: extractSelect(props['Tipo']),
     categoria: extractSelect(props['Categoria']),
+    
+    // Novo: Tempo da sessao 
+    score: extractNumber(props['Score']) || 0,
   };
 }
 
@@ -123,6 +127,40 @@ export async function fetchCardsFromNotion() {
   }
 }
 
+
+/**
+ * Search all config levels
+ */
+export async function fetchConfigFromNotion() {
+  try {
+    const response = await fetch(`/api/notion/databases/${CONFIG_DATABASE_ID}/query`, {
+      method: 'POST',
+      headers: getHeaders(),
+      body: JSON.stringify({})
+    });
+
+    if (!response.ok) {
+      throw new Error(`Erro buscando configs: ${response.status} ${await response.text()}`);
+    }
+
+    const data = await response.json();
+    return data.results.map(page => {
+      const p = page.properties;
+      return {
+        id: page.id,
+        nivel: extractText(p['Nivel']),
+        descricao: extractText(p['Descrição']),
+        carga: Number(extractText(p['Carga'])) || 0,
+        fatorDias: extractNumber(p['Fato de dias']),
+        qtdDeCards: Number(extractText(p['Quantidade de cards'])) || 0,
+        limiteDeCard: Number(extractText(p['Limite de card'])) || 1,
+      };
+    });
+  } catch (error) {
+    console.error("Erro no fetchConfigFromNotion:", error);
+    throw error;
+  }
+}
 
 /**
  * Atualiza um único cartão após uma revisão (Feedback do SRS).
@@ -167,6 +205,11 @@ export async function updateCardInNotion(pageId, updates) {
   if (updates.tipo !== undefined) properties['Tipo'] = { select: updates.tipo ? { name: String(updates.tipo) } : null };
   if (updates.categoria !== undefined) properties['Categoria'] = { select: updates.categoria ? { name: String(updates.categoria) } : null };
 
+
+  if (updates.score !== undefined) {
+    properties['Score'] = { number: Number(updates.score) };
+  }
+
   // Se nenhum campo pra atualizar foi passado
   if (Object.keys(properties).length === 0) return true;
 
@@ -177,7 +220,11 @@ export async function updateCardInNotion(pageId, updates) {
       body: JSON.stringify({ properties })
     });
 
-    if (!response.ok) throw new Error(`Erro ao atualizar: ${response.status}`);
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error("Notion Update Error:", errorText, properties);
+      throw new Error(`Erro ao atualizar: ${response.status} - ${errorText}`);
+    }
     
     return await response.json(); // retorna o card atualizado
   } catch (error) {

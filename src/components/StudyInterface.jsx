@@ -14,33 +14,43 @@ const SUBJECT_ICONS = {
   'default': '📚'
 };
 
-const SRS_TIERS = [
-  { id: 1, label: 'Esqueci',   emoji: '❌', type: 'forgot',    color: '#ef4444', desc: 'Recomeçar',           interval: '1 dia'   },
-  { id: 2, label: 'Aprendendo', emoji: '🌱', type: 'learning',  color: '#f97316', desc: 'Em progresso',        interval: '2 dias'  },
-  { id: 4, label: 'Parcial',   emoji: '🥶', type: 'partial',   color: '#eab308', desc: 'Sei, mas não tudo',   interval: '4 dias'  },
-  { id: 6, label: 'Esforço',   emoji: '💪', type: 'effortful', color: '#3b82f6', desc: 'Demorei, mas acertei',interval: '7 dias'  },
-  { id: 10, label: 'Dominado', emoji: '🏆', type: 'mastered',  color: '#10b981', desc: 'Excelente',           interval: '30 dias' }
-];
-
-const getLevelFromName = (name = '') => {
-  const tier = SRS_TIERS.find(t => t.label === name);
-  return tier ? tier.id : 0; // 0 = novo card, sem nível ainda
+// Dynamically map Notion config to SRS buttons
+const getDynamicTiers = (configLevels) => {
+  if (!configLevels || configLevels.length === 0) return [];
+  // Sort ascending by fatorDias (lowest score = hardest card first)
+  const sorted = [...configLevels].sort((a, b) => a.fatorDias - b.fatorDias);
+  return sorted.map((c, idx) => ({
+    id: c.id || idx,
+    label: c.nivel,
+    desc: c.descricao,
+    carga: c.carga,
+    fatorDias: c.fatorDias,
+    qtdDeCards: c.qtdDeCards,
+    limiteDeCard: c.limiteDeCard,
+    interval: c.fatorDias > 0 ? `+${c.fatorDias}d` : `${c.fatorDias}d`,
+    // Color scale from red (hard) to green (easy)
+    color: ['#ef4444', '#f97316', '#eab308', '#3b82f6', '#10b981'][idx % 5],
+    emoji: ['🧠', '🥶', '🤔', '⚡', '🤖'][idx % 5],
+    type: ['forgot', 'partial', 'effortful', 'learning', 'mastered'][idx % 5]
+  }));
 };
 
-// Todos os tiers ficam visíveis; os fora do alcance são bloqueados
-const getTiersWithLock = (currentFeedback) => {
-  const currentId = getLevelFromName(currentFeedback);
-  const currentIndex = SRS_TIERS.findIndex(t => t.id === currentId);
-  // Card novo: libera os 3 primeiros
-  const maxIndex = currentIndex === -1 ? 2 : Math.min(currentIndex + 1, SRS_TIERS.length - 1);
-  return SRS_TIERS.map((tier, idx) => ({ ...tier, isLocked: idx > maxIndex }));
+const getStatusFromLabel = (label) => {
+  const lower = (label || '').toLowerCase();
+  if (lower.includes('automático')) return 'Dominado';
+  if (lower.includes('branco')) return 'Aprendizado';
+  return 'Revisão';
 };
 
-const getStatusFromTier = (id) => {
-  if (id >= 10) return 'Dominado';
-  if (id >= 6) return 'Revisão';
-  return 'Aprendizado';
-};
+/**
+ * Spaced Repetition Formula mapping accumulated Score to Review Interval (days).
+ * - Score <= 0 -> 1 day
+ * - Score > 0 -> exponential spaced repetition curve.
+ */
+function calculateReviewInterval(score) {
+  if (score <= 0) return 1;
+  return Math.round(1 + Math.pow(1.45, score * 0.5));
+}
 
 /* ══════════════════════════════════════
    DRAGGABLE STACK CARD
@@ -216,157 +226,11 @@ const ActiveFlashcard = ({ card, isFlipped, onFlip }) => {
   );
 };
 
-/* ══════════════════════════════════════
-   STUDY EVALUATION EFFECTS
-   (Dynamic particles and emojis)
-    ══════════════════════════════════════ */
-const StudyEvaluationEffects = ({ event }) => {
-  const [activeEvent, setActiveEvent] = useState(null);
-
-  useEffect(() => {
-    if (event) {
-      setActiveEvent(event);
-      const timer = setTimeout(() => setActiveEvent(null), 1500);
-      return () => clearTimeout(timer);
-    }
-  }, [event]);
-
-  if (!activeEvent) return null;
-
-  const renderParticles = (type, count, emojis) => {
-    return Array.from({ length: count }).map((_, i) => (
-      <motion.div
-        key={`${type}-p-${activeEvent.timestamp}-${i}`}
-        initial={{ opacity: 0, scale: 0, x: 0, y: 0 }}
-        animate={{
-          opacity: [0, 1, 0],
-          scale: [0, Math.random() * 1.5 + 0.5, 0],
-          x: (Math.random() - 0.5) * 800,
-          y: (Math.random() - 0.5) * 800,
-          rotate: Math.random() * 720
-        }}
-        transition={{ duration: 1.2, delay: i * 0.02, ease: "easeOut" }}
-        style={{
-          fontFamily: 'Outfit, sans-serif',
-          fontSize: '1.4rem',
-          fontWeight: 500,
-          zIndex: 99,
-          pointerEvents: 'none'
-        }}
-      >
-        {emojis[i % emojis.length]}
-      </motion.div>
-    ));
-  };
-
-  return (
-    <div className={`feedback-overlay-container effect-${activeEvent.type}`} style={{ position: 'absolute', inset: -150, pointerEvents: 'none', zIndex: 1000, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-
-      {/* ── FORGOT 🧠💥 ── */}
-      {activeEvent.type === 'forgot' && (
-        <>
-          <motion.div
-            key={`forgot-emoji-${activeEvent.timestamp}`}
-            initial={{ scale: 3, opacity: 0 }}
-            animate={{ scale: [3, 1, 1.2, 1], opacity: [0, 1, 1, 0], rotate: [0, -10, 10, 0] }}
-            transition={{ duration: 1.2 }}
-            style={{ fontSize: '8rem', zIndex: 1001, filter: 'drop-shadow(0 0 12px #ef4444)' }}
-          >
-            🧠💥
-          </motion.div>
-          {renderParticles('forgot', 30, ['☄️', '🔥', '💨', '⚠️', '💥'])}
-        </>
-      )}
-
-      {/* ── EFFORTFUL 💪 ── */}
-      {activeEvent.type === 'effortful' && (
-        <>
-          <motion.div
-            key={`effortful-emoji-${activeEvent.timestamp}`}
-            initial={{ scale: 0, opacity: 0, y: 60 }}
-            animate={{ scale: [0, 1.4, 1.1], opacity: [0, 1, 1, 0], y: [60, -30] }}
-            transition={{ duration: 1.3 }}
-            style={{ fontSize: '8rem', zIndex: 1001, filter: 'drop-shadow(0 0 14px #f97316)' }}
-          >
-            💪
-          </motion.div>
-          {renderParticles('effort', 20, ['🔥', '⚡', '🎯', '💪', '✨'])}
-        </>
-      )}
-
-      {/* ── PARTIAL 🥶 ── */}
-      {activeEvent.type === 'partial' && (
-        <>
-          <motion.div
-            key={`partial-emoji-${activeEvent.timestamp}`}
-            initial={{ scale: 0, opacity: 0 }}
-            animate={{ scale: [0, 1.5, 1.2], opacity: [0, 1, 1, 0], y: [40, -20] }}
-            transition={{ duration: 1.4 }}
-            style={{ fontSize: '8rem', zIndex: 1001, filter: 'drop-shadow(0 0 16px #7dd3fc)' }}
-          >
-            🥶
-          </motion.div>
-          {renderParticles('ice', 22, ['❄️', '🧊', '💨', '🌨️', '💠'])}
-        </>
-      )}
-
-      {/* ── LEARNING 🌱 ── */}
-      {activeEvent.type === 'learning' && (
-        <>
-          <motion.div
-            key={`learning-emoji-${activeEvent.timestamp}`}
-            initial={{ scale: 0, y: 80 }}
-            animate={{ scale: [0, 1.7, 1.4], y: -130, opacity: [0, 1, 0] }}
-            transition={{ duration: 1.2 }}
-            style={{ fontSize: '7rem', zIndex: 1001, filter: 'drop-shadow(0 0 14px #4ade80)' }}
-          >
-            🌱
-          </motion.div>
-          {renderParticles('growth', 18, ['✨', '🌿', '🍃', '🍀', '✨'])}
-        </>
-      )}
-
-      {/* ── REVIEW / KNOWING 🚀 ── */}
-      {(activeEvent.type === 'review' || activeEvent.type === 'knowing') && (
-        <>
-          <motion.div
-            key={`review-emoji-${activeEvent.timestamp}`}
-            initial={{ scale: 0, x: -80, y: 80 }}
-            animate={{ scale: [0, 1.4, 1.1], x: 160, y: -160, opacity: [0, 1, 0], rotate: 40 }}
-            transition={{ duration: 1.2 }}
-            style={{ fontSize: '7.5rem', zIndex: 1001, filter: 'drop-shadow(0 0 14px #f59e0b)' }}
-          >
-            🚀
-          </motion.div>
-          {renderParticles('rocket', 22, ['✨', '⭐', '☄️', '💫', '✩'])}
-        </>
-      )}
-
-      {/* ── MASTERED / FLUENT 🏆 ── */}
-      {(activeEvent.type === 'mastered' || activeEvent.type === 'fluent') && (
-        <>
-          <motion.div
-            key={`easy-emoji-${activeEvent.timestamp}`}
-            initial={{ scale: 0, rotate: -180 }}
-            animate={{ scale: [0, 2.2, 1.9], rotate: 0, opacity: [0, 1, 0], y: -40 }}
-            transition={{ duration: 1.4, ease: 'backOut' }}
-            style={{ fontSize: '9rem', zIndex: 1001, filter: 'drop-shadow(0 0 22px #facc15)' }}
-          >
-            🏆
-          </motion.div>
-          {renderParticles('master', 36, ['✨', '⭐', '🎉', '🎊', '👑'])}
-        </>
-      )}
-
-      <div className="css-effect-ring" />
-    </div>
-  );
-};
 
 /* ══════════════════════════════════════
    MAIN COMPONENT
     ══════════════════════════════════════ */
-const StudyInterface = ({ onExit, flashcards = [], onUpdateCard }) => {
+const StudyInterface = ({ onExit, flashcards = [], onUpdateCard, configLevels = [] }) => {
   const normalizedCards = flashcards.map(c => ({
     ...c,
     id: c.id,
@@ -382,18 +246,31 @@ const StudyInterface = ({ onExit, flashcards = [], onUpdateCard }) => {
     acertos: c.acertos || 0,
     erros: c.erros || 0,
     explicacao: c.explicacao || '',
-    feedback: c.feedback || c.nivel || '' // nível SRS atual do card
+    feedback: c.feedback || c.nivel || '', // nível SRS atual do card
+    tempoSessao: c.tempoSessao || 0,
+    score: c.score || 0,
+    timesShown: 0,
+    remainingAppearances: 1
   }));
 
   const [deck, setDeck] = useState(normalizedCards);
+  const [completedCards, setCompletedCards] = useState([]); // Visual tracking of finished cards
   const [activeId, setActiveId] = useState(normalizedCards[0]?.id);
   const [isFlipped, setIsFlipped] = useState(false);
   const [studiedCount, setStudiedCount] = useState(0);
+  
+  // Session Configuration & Limits
+  const [cargaAtual, setCargaAtual] = useState(0);
+  const limiteCarga = flashcards.length * 2;
+  const [cardStartTime, setCardStartTime] = useState(Date.now());
   const [evaluationEvent, setEvaluationEvent] = useState(null);
   const [sessionFinished, setSessionFinished] = useState(false);
+  const [sessionReason, setSessionReason] = useState('Parabéns!');
   const [showSuccess, setShowSuccess] = useState(null);
 
-  if (!activeId || deck.length === 0) {
+  const dynamicTiers = getDynamicTiers(configLevels);
+
+  if (!activeId || (deck.length === 0 && !sessionFinished)) {
     return (
       <div className="study-container empty-state">
         <div className="glass-card premium-shadow">
@@ -415,11 +292,13 @@ const StudyInterface = ({ onExit, flashcards = [], onUpdateCard }) => {
           className="completion-card glass-card"
         >
           <div className="complete-emoji">🎉</div>
-          <h1>Sessão Concluída!</h1>
-          <p>Você revisou <strong>{deck.length}</strong> cartões hoje.</p>
+          <h1>{sessionReason}</h1>
+          <p>Você revisou <strong>{studiedCount}</strong> interações hoje.</p>
           <div className="stats-row">
+            <div className="stat-pill" title="Carga acumulada na sessão">
+              Carga: {cargaAtual} / {limiteCarga}
+            </div>
             <div className="stat-pill">Consistência +5xp</div>
-            <div className="stat-pill">Foco Máximo</div>
           </div>
           <button className="premium-btn large" onClick={onExit}>Finalizar Sessão</button>
         </motion.div>
@@ -429,83 +308,117 @@ const StudyInterface = ({ onExit, flashcards = [], onUpdateCard }) => {
 
   const activeCard = deck.find(c => c.id === activeId);
   const deckCards = deck.filter(c => c.id !== activeId);
-  const visibleDeck = deckCards.slice(0, MAX_DECK_VISIBLE);
-  const totalCards = deck.length;
-  const progress = (studiedCount / totalCards) * 100;
+  
+  // Combine pending cards and completed cards so that completed cards "go to the back" visually
+  const visualStackBase = [...deckCards, ...completedCards];
+  const visibleDeck = visualStackBase.slice(0, MAX_DECK_VISIBLE);
+  
+  const totalCards = flashcards.length;
+  // Progress can be visually derived from carga limits or just simple completed vs total
+  const progress = Math.min(100, (cargaAtual / Math.max(1, limiteCarga)) * 100);
 
   const handlePromote = (card) => {
+    // Apenas coloca na frente, não afeta a Carga.
     setDeck(prev => {
       const without = prev.filter(c => c.id !== card.id && c.id !== activeId);
       const oldActive = prev.find(c => c.id === activeId);
-      return [card, ...without, oldActive];
+      return [card, ...without, oldActive].filter(Boolean);
     });
     setActiveId(card.id);
     setIsFlipped(false);
+    setCardStartTime(Date.now());
   };
 
   const handleEvaluate = (tier) => {
     const type = tier.type;
     setEvaluationEvent({ type, timestamp: Date.now() });
 
-    if (onUpdateCard && activeId) {
-      const activeRaw = flashcards.find(c => c.id === activeId);
-      const currentRank = tier.id;
-      const lastSessionRank = getLevelFromName(activeRaw?.feedback || '');
-      const isAcerto = currentRank > lastSessionRank || (currentRank === lastSessionRank && currentRank >= 6);
+    // Calcula tempo gasto na sessão para este card (em minutos)
+    const elapsedMs = Date.now() - cardStartTime;
+    const elapsedMinutes = Number((elapsedMs / 60000).toFixed(2));
+    
+    // Calcula a nova carga
+    const addedCarga = tier.carga || 0;
+    const newCargaTotal = cargaAtual + addedCarga;
+    
+    // Novo Sistema: O 'fatorDias' da configuração atua como uma Progressão de Score.
+    const addedScore = tier.fatorDias || 0;
+    const newScore = Math.max(0, (activeCard.score || 0) + addedScore);
+    const addedDays = calculateReviewInterval(newScore);
 
-      const now = new Date();
-      let nextDate = new Date();
-      const intervals = { forgot: 1, learning: 2, partial: 4, effortful: 7, review: 15, mastered: 30 };
-      nextDate.setDate(now.getDate() + (intervals[type] || 0));
+    const now = new Date();
+    let nextDate = new Date();
+    nextDate.setDate(now.getDate() + addedDays);
 
+    const lbl = (tier.label || '').toLowerCase();
+    const isError = lbl.includes('err') || lbl.includes('branc') || lbl.includes('esqueci');
+
+    if (onUpdateCard && activeId && activeCard) {
       onUpdateCard(activeId, {
         feedback: tier.label,
-        status: getStatusFromTier(currentRank),
+        status: getStatusFromLabel(tier.label),
         proximaRevisao: nextDate.toISOString(),
         ultimaRevisao: now.toISOString(),
-        acertos: (activeRaw?.acertos || 0) + (isAcerto ? 1 : 0),
-        erros: (activeRaw?.erros || 0) + (isAcerto ? 0 : 1)
+        tempoSessao: (activeCard.tempoSessao || 0) + elapsedMinutes,
+        acertos: activeCard.acertos + (isError ? 0 : 1),
+        erros: activeCard.erros + (isError ? 1 : 0),
+        score: newScore
       });
     }
 
-    if (deckCards.length === 0) {
-      setStudiedCount(totalCards);
+    const without = deck.filter(c => c.id !== activeId);
+    let newDeckList;
+    
+    // Cálculo de aparições para a mesma sessão baseado no Nível
+    const qtd = tier.qtdDeCards || 0;
+    const limit = tier.limiteDeCard || 1;
+
+    let newRem = (activeCard.remainingAppearances - 1) + qtd;
+    let newShown = activeCard.timesShown + 1;
+
+    // Limita as aparições do cartão ao "limite máximo permitido" nesta sessão (baseado na config do Nível)
+    if (newShown + newRem > limit) {
+      newRem = limit - newShown;
+    }
+    if (newRem < 0) newRem = 0;
+
+    const updatedCard = {
+      ...activeCard,
+      remainingAppearances: newRem,
+      timesShown: newShown
+    };
+
+    if (newRem > 0) {
+      // O card ainda tem aparições restantes: Vai para o final da fila (Loop)
+      newDeckList = [...without, updatedCard];
+    } else {
+      // O card atingiu o limite de exibições ou foi completado de vez ("Automático"): Remove do ciclo
+      newDeckList = without;
+      setCompletedCards(prev => [...prev, updatedCard]);
+    }
+
+    setDeck(newDeckList);
+    setCargaAtual(newCargaTotal);
+    setStudiedCount(c => c + 1);
+
+    if (newCargaTotal >= limiteCarga) {
+      setSessionReason("Sessão Encerrada (Carga Atingida)");
       setTimeout(() => setSessionFinished(true), 800);
       return;
     }
+    if (newDeckList.length === 0) {
+       setSessionReason("Baralho Limpo!");
+       setTimeout(() => setSessionFinished(true), 800);
+       return;
+    }
 
-    // Troca imediata — emoji anima em paralelo
-    handlePromote(deckCards[0]);
-    setStudiedCount(c => c + 1);
+    setActiveId(newDeckList[0].id);
+    setIsFlipped(false);
+    setCardStartTime(Date.now());
   };
 
   return (
     <div className="study-interface premium-theme">
-      <StudyEvaluationEffects event={evaluationEvent} />
-      <AnimatePresence>
-        {showSuccess && (
-          <motion.div
-            key="success-emoji"
-            initial={{ y: 0, opacity: 0, scale: 0.5 }}
-            animate={{ y: -150, opacity: 1, scale: 1.5 }}
-            exit={{ opacity: 0, scale: 2 }}
-            transition={{ duration: 0.6, ease: "circOut" }}
-            style={{
-              position: 'fixed',
-              left: '50%',
-              bottom: '20%',
-              transform: 'translateX(-50%)',
-              fontSize: '5rem',
-              zIndex: 1000,
-              pointerEvents: 'none',
-              textShadow: `0 0 30px ${showSuccess.color}`
-            }}
-          >
-            {showSuccess.emoji}
-          </motion.div>
-        )}
-      </AnimatePresence>
-
       <header className="study-header">
         <div className="header-brand">
           <div className="brand-logo">❂</div>
@@ -514,11 +427,11 @@ const StudyInterface = ({ onExit, flashcards = [], onUpdateCard }) => {
 
         <div className="header-center">
           <div className="progress-group">
-            <div className="progress-numbers">
-              <span className="current">{studiedCount}</span>
-              <span className="total">/ {totalCards}</span>
+            <div className="progress-numbers" title={`Carga limite de sessão: ${limiteCarga}`}>
+              <span className="current">{cargaAtual}</span>
+              <span className="total">/ {limiteCarga} (Carga)</span>
             </div>
-            <div className="progress-bar-bg">
+            <div className="progress-bar-bg" title="Se certar mais fácil, a barra sobe devagar!">
               <motion.div
                 className="progress-bar-fill"
                 animate={{ width: `${progress}%` }}
@@ -556,23 +469,18 @@ const StudyInterface = ({ onExit, flashcards = [], onUpdateCard }) => {
                   className="srs-panel"
                 >
                   <div className="srs-grid">
-                    {getTiersWithLock(activeCard.feedback || activeCard.nivel).map(tier => (
+                    {dynamicTiers.map(tier => (
                       <button
                         key={tier.id}
-                        className={`srs-btn ${tier.isLocked ? 'srs-locked' : ''}`}
+                        className={`srs-btn`}
                         style={{
                           '--btn-color': tier.color,
-                          background: tier.isLocked ? 'transparent' : `${tier.color}18`,
-                          borderColor: tier.isLocked ? 'rgba(255,255,255,0.04)' : `${tier.color}44`,
                         }}
-                        onClick={() => !tier.isLocked && handleEvaluate(tier)}
-                        disabled={tier.isLocked}
-                        title={tier.isLocked ? 'Avance um nível por vez 🔒' : tier.desc}
+                        onClick={() => handleEvaluate(tier)}
+                        title={`Carga: +${tier.carga}`}
                       >
-                        <span className="srs-emoji">{tier.isLocked ? '🔒' : tier.emoji}</span>
                         <span className="srs-label">{tier.label}</span>
                         <span className="srs-desc">{tier.desc}</span>
-                        <span className="srs-interval">{tier.interval}</span>
                       </button>
                     ))}
                   </div>
@@ -585,8 +493,10 @@ const StudyInterface = ({ onExit, flashcards = [], onUpdateCard }) => {
         {/* Right Side: Draggable Card Stack */}
         <aside className="study-sidebar">
           <div className="sidebar-header">
-            <h3>Próximos</h3>
-            <span className="badge">{deckCards.length}</span>
+            <h3 title="Quantidade de repetições restantes nesta sessão">Próximos</h3>
+            <span className="badge">
+              {deckCards.reduce((acc, card) => acc + (card.remainingAppearances || 1), 0)}
+            </span>
           </div>
           <div className="card-stack-area">
             <AnimatePresence>

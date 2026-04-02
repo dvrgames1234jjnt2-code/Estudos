@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react'
 import StudyInterface from './components/StudyInterface'
 import Dashboard from './components/Dashboard'
-import { fetchCardsFromNotion, updateCardInNotion } from './services/notionService'
+import { fetchCardsFromNotion, updateCardInNotion, fetchConfigFromNotion } from './services/notionService'
 import './index.css'
 
 function App() {
   const [currentTab, setCurrentTab] = useState('dashboard');
   const [flashcards, setFlashcards] = useState([]);
+  const [sessionConfig, setSessionConfig] = useState([]);
   const [studySubset, setStudySubset] = useState(null); // Local subset for active session
   const [isLoading, setIsLoading] = useState(true);
   const [fetchError, setFetchError] = useState(null);
@@ -16,10 +17,14 @@ function App() {
       setIsLoading(true);
       setFetchError(null);
       try {
-        const data = await fetchCardsFromNotion();
+        const [data, configData] = await Promise.all([
+          fetchCardsFromNotion(),
+          fetchConfigFromNotion()
+        ]);
         setFlashcards(data || []);
+        setSessionConfig(configData || []);
       } catch (err) {
-        setFetchError(err.message || 'Erro desconhecido ao carregar Notion');
+        setFetchError(err.message || 'Erro desconhecido ao carregar dados');
         setFlashcards([]);
       } finally {
         setIsLoading(false);
@@ -57,6 +62,7 @@ function App() {
           onExit={() => setCurrentTab('dashboard')} 
           flashcards={studySubset || flashcards}
           onUpdateCard={handleUpdateCard}
+          configLevels={sessionConfig}
         />
       )}
     </>
