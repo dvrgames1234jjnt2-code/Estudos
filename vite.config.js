@@ -6,10 +6,10 @@ export default defineConfig({
   plugins: [react()],
   server: {
     proxy: {
-      '/notion-api': {
-        target: 'https://api.notion.com',
+      '/api/notion': {
+        target: 'https://api.notion.com/v1',
         changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/notion-api/, '')
+        rewrite: (path) => path.replace(/^\/api\/notion/, '')
       }
     }
   }

@@ -102,7 +102,7 @@ export function parseNotionCard(page) {
  */
 export async function fetchCardsFromNotion() {
   try {
-    const response = await fetch(`/notion-api/v1/databases/${NOTION_DATABASE_ID}/query`, {
+    const response = await fetch(`/api/notion/databases/${NOTION_DATABASE_ID}/query`, {
       method: 'POST',
       headers: getHeaders(),
       body: JSON.stringify({
@@ -171,7 +171,7 @@ export async function updateCardInNotion(pageId, updates) {
   if (Object.keys(properties).length === 0) return true;
 
   try {
-    const response = await fetch(`/notion-api/v1/pages/${pageId}`, {
+    const response = await fetch(`/api/notion/pages/${pageId}`, {
       method: 'PATCH',
       headers: getHeaders(),
       body: JSON.stringify({ properties })
@@ -216,7 +216,7 @@ export async function createCardInNotion(card) {
   if (card.ultimaRevisao) properties['Ultima_Revisao'] = { date: { start: card.ultimaRevisao.split('T')[0] } };
 
   try {
-    const response = await fetch(`/notion-api/v1/pages`, {
+    const response = await fetch(`/api/notion/pages`, {
       method: 'POST',
       headers: getHeaders(),
       body: JSON.stringify({

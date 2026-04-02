@@ -1,8 +1,5 @@
 {
-  "rewrites": [
-    {
-      "source": "/notion-api/:path*",
-      "destination": "https://api.notion.com/:path*"
-    }
-  ]
+  "buildCommand": "npm run build",
+  "outputDirectory": "dist",
+  "framework": "vite"
 }
