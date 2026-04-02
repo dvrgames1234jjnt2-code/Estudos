@@ -653,12 +653,68 @@
 @media (max-width: 1024px) {
   .dashboard-content { grid-template-columns: 1fr; }
   .levels-sidebar { position: static; }
+  
+  .reorder-list-header, .reorder-item-card {
+    grid-template-columns: 40px 1fr 120px 120px 100px; /* Hide some columns or resize */
+  }
 }
 
 @media (max-width: 768px) {
-  .stats-overview { grid-template-columns: 1fr; }
-  .dashboard-header { flex-direction: column; align-items: flex-start; gap: 24px; }
-  .dashboard-title { font-size: 2.2rem; }
+  .dashboard-container { padding: 20px; }
+  .stats-overview { grid-template-columns: 1fr; gap: 16px; }
+  .stat-card { padding: 20px; }
+  .dashboard-header { flex-direction: column; align-items: flex-start; gap: 24px; margin-bottom: 24px; }
+  .dashboard-title { font-size: 2rem; }
+  .header-actions { width: 100%; align-items: flex-start; }
+  
+  .primary-study-btn { width: 100%; text-align: center; }
+  .feed-controls { flex-direction: column; align-items: flex-start; width: 100%; }
+  .view-toggle-pills { width: 100%; justify-content: space-between; }
+  .data-management-bar { width: 100%; justify-content: space-between; flex-wrap: wrap; }
+  
+  /* Make list view stacks wrap on mobile */
+  .reorder-list-header {
+    display: none; /* Hide header on mobile, too cramped */
+  }
+  
+  .reorder-item-card {
+    display: flex;
+    flex-wrap: wrap;
+    padding: 16px;
+    gap: 12px;
+    position: relative;
+  }
+  
+  .reorder-item-card .drag-handle {
+    position: absolute;
+    right: 16px;
+    top: 16px;
+  }
+  
+  .reorder-item-card .col-text {
+    width: 80%;
+    padding-right: 0;
+  }
+  
+  .reorder-item-card .col-meta {
+    width: auto;
+    flex: 1 1 auto;
+  }
+  
+  .modal-body {
+    padding: 16px 0;
+  }
+  
+  .import-modal {
+    padding: 20px;
+  }
+}
+
+@media (max-width: 480px) {
+  .topic-content-grid {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
 }
 
 /* Import Overlay */

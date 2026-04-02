@@ -776,3 +776,125 @@
 /* Scrollbar — oculta mas funcional */
 ::-webkit-scrollbar { width: 0; height: 0; }
 * { scrollbar-width: none; }
+
+/* ══════════════════════════════════════
+   RESPONSIVE DESIGN (MOBILE & TABLET)
+══════════════════════════════════════ */
+@media (max-width: 1024px) {
+  .study-main-layout {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto 1fr;
+  }
+  
+  .study-sidebar {
+    padding: 20px;
+    height: 180px;
+    border-left: none;
+    border-bottom: 1px solid var(--border-subtle);
+    order: -1; /* Move to top on tablets */
+  }
+
+  .card-stack-area {
+    min-height: 100px;
+  }
+  
+  .stack-card {
+    height: 70px;
+    padding: 10px;
+  }
+
+  .study-content-area {
+    padding: 30px 20px 120px 20px; /* Space for fixed bottom controls */
+  }
+  
+  .flashcard-container {
+    height: 420px;
+  }
+}
+
+@media (max-width: 768px) {
+  .study-header {
+    height: 70px;
+    padding: 0 20px;
+  }
+  
+  .brand-text {
+    display: none; /* Hide text on very small screens */
+  }
+  
+  .study-sidebar {
+    display: none; /* Hide the visual stack entirely on mobile to save vertical space */
+  }
+  
+  .study-content-area {
+    padding: 20px 15px 140px 15px; /* Extra bottom padding for multi-row SRS buttons */
+  }
+
+  .flashcard-container {
+    height: 380px;
+  }
+  
+  .card-face {
+    padding: 30px 25px;
+  }
+  
+  .card-question-bold {
+    font-size: 1.1rem;
+  }
+  
+  .card-answer-centered {
+    font-size: 1.3rem;
+  }
+  
+  .explanation-bubble {
+    font-size: 0.85rem;
+    padding: 16px;
+  }
+  
+  .card-header-technical {
+    left: 20px;
+    right: 20px;
+  }
+  
+  .study-controls {
+    padding: 15px;
+    bottom: 10px;
+  }
+  
+  .srs-panel {
+    padding: 8px;
+    width: 100%;
+    max-width: 380px;
+  }
+  
+  .srs-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 6px;
+  }
+  
+  .srs-btn {
+    min-width: 0;
+    padding: 8px 4px;
+    border-radius: 12px;
+  }
+  
+  .srs-label {
+    font-size: 0.6rem;
+  }
+  
+  .srs-desc {
+    display: none; /* Hide long descriptions on small buttons */
+  }
+  
+  .srs-interval {
+    font-size: 0.5rem;
+  }
+  
+  .card-index-indicator {
+    left: 50%;
+    transform: translateX(-50%);
+    bottom: auto;
+    top: -25px;
+  }
+}
