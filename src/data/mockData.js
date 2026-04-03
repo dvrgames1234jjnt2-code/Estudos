@@ -1,11 +1,12 @@
 export const MOCK_LEVELS = [
-  { id: 'unknown', name: 'Desconhecido', color: '#64748b' },
+  { id: 'new', name: 'Novo', color: '#6366f1' },
   { id: 'learning', name: 'Aprendendo', color: '#0ea5e9' },
   { id: 'forgot', name: 'Esqueci', color: '#ef4444' },
   { id: 'partial', name: 'Parcial', color: '#f97316' },
   { id: 'almost', name: 'Quase lá', color: '#eab308' },
   { id: 'mastered', name: 'Dominado', color: '#22c55e' },
-  { id: 'maintenance', name: 'Manutenção', color: '#8b5cf6' }
+  { id: 'maintenance', name: 'Manutenção', color: '#8b5cf6' },
+  { id: 'unknown', name: 'Desconhecido', color: '#64748b' }
 ];
 
 export const MOCK_DECKS = [

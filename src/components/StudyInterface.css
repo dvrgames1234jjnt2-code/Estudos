@@ -48,6 +48,18 @@
   position: relative;
 }
 
+.study-ambient-glow {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 80vw;
+  height: 80vh;
+  background: radial-gradient(circle at center, rgba(99, 102, 241, 0.04) 0%, transparent 70%);
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  z-index: 0;
+}
+
 /* ══════════════════════════════════════
    HEADER STYLES
 ══════════════════════════════════════ */
@@ -219,10 +231,14 @@
 }
 
 .stack-card.is-top {
-  background: rgba(22, 28, 45, 0.95);
-  border-color: rgba(99, 102, 241, 0.25);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(99, 102, 241, 0.1);
+  background: rgba(30, 41, 59, 0.98);
+  border-color: rgba(99, 102, 241, 0.5);
+  box-shadow: 
+    0 12px 32px rgba(0, 0, 0, 0.6), 
+    0 0 0 1px rgba(99, 102, 241, 0.2),
+    0 0 15px rgba(99, 102, 241, 0.1);
 }
+
 
 .stack-card-inner {
   display: flex;
@@ -258,7 +274,6 @@
 .stack-card-topic {
   font-size: 0.65rem;
   color: var(--text-muted);
-  text-transform: uppercase;
   letter-spacing: 0.04em;
   white-space: nowrap;
   overflow: hidden;
@@ -292,21 +307,77 @@
    ACTIVE FLASHCARD AREA
 ══════════════════════════════════════ */
 .study-content-area {
+  flex: 1;
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
-  padding: 60px;
+  justify-content: center; /* Mantém o centralizer no meio do container */
+  padding: 40px;
   position: relative;
+  overflow: hidden;
+  height: 100%;
+}
+
+.card-stack-centralizer {
+  display: grid;
+  grid-template-columns: 1fr;
+  grid-template-rows: 1fr;
+  place-items: center;
+  width: 100%;
+  max-width: 720px;
+  height: 520px;
+  position: relative;
+  z-index: 50;
 }
 
 .flashcard-container {
+  grid-area: 1 / 1;
   width: 100%;
-  max-width: 680px;
-  height: 480px;
-  perspective: 2000px;
+  max-width: 720px;
+  height: 520px;
+  perspective: 2500px;
   cursor: pointer;
   z-index: 50;
+  position: relative;
+  margin: 0 auto;
+}
+
+
+/* Background Stack Deco */
+.centred-background-stack {
+  grid-area: 1 / 1;
+  width: 100%;
+  max-width: 720px;
+  height: 520px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  z-index: 10;
+}
+
+.bg-card-shadow {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  background: #111827;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: var(--radius-xl);
+  box-shadow: 0 15px 45px rgba(0,0,0,0.7);
+  transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+
+.card-depth-1 {
+  transform: translateY(12px) scale(0.97) rotate(1deg);
+  opacity: 0.6;
+  z-index: 12;
+}
+
+.card-depth-2 {
+  transform: translateY(24px) scale(0.94) rotate(-1.5deg);
+  opacity: 0.3;
+  z-index: 11;
 }
 
 .flashcard {
@@ -331,8 +402,13 @@
 }
 
 .card-front {
-  background: linear-gradient(145deg, #0f172a, #020617);
+  background: linear-gradient(145deg, #1e293b, #0f172a);
+  box-shadow: 
+    var(--shadow-premium),
+    0 0 0 1px rgba(255, 255, 255, 0.05) inset,
+    0 0 20px rgba(99, 102, 241, 0.05);
 }
+
 
 .card-glare {
   position: absolute;
@@ -345,9 +421,14 @@
 }
 
 .card-back {
-  background: linear-gradient(145deg, #1e1b4b, #0f172a);
+  background: linear-gradient(145deg, #2e1065, #0f172a);
   transform: rotateY(180deg);
+  box-shadow: 
+    var(--shadow-premium),
+    0 0 0 1px rgba(255, 255, 255, 0.05) inset,
+    0 0 20px rgba(139, 92, 246, 0.05);
 }
+
 
 /* ══════════════════════════════════════
    REFINED CARD COMPONENTS
@@ -411,10 +492,9 @@
 
 .back-context-label {
   display: block;
-  font-size: 0.55rem;
-  font-weight: 800;
+  font-size: 0.65rem;
+  font-weight: 700;
   color: var(--accent-primary);
-  letter-spacing: 0.15em;
   margin-bottom: 4px;
 }
 
@@ -456,10 +536,9 @@
 
 .header-main-title {
   font-family: 'Outfit', sans-serif;
-  font-size: 0.75rem;
-  font-weight: 800;
+  font-size: 0.85rem;
+  font-weight: 700;
   color: var(--accent-primary);
-  letter-spacing: 0.15em;
   opacity: 0.9;
 }
 
@@ -505,9 +584,9 @@
 
 .type-badge {
   font-family: 'Inter', sans-serif;
-  font-size: 0.6rem;
-  font-weight: 800;
-  color: var(--text-subtle);
+  font-size: 0.65rem;
+  font-weight: 600;
+  color: var(--text-muted);
   background: rgba(255, 255, 255, 0.03);
   padding: 4px 10px;
   border-radius: 6px;
@@ -525,8 +604,6 @@
   font-weight: 500;
   color: #94a3b8; /* Suave grayish-white */
   line-height: 1.3;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
   margin: 0;
   pointer-events: auto; /* Re-enable for text selection if needed */
 }
@@ -543,7 +620,15 @@
   font-weight: 400;
   line-height: 1.4;
   color: #fff;
-  margin-bottom: 30px;
+}
+
+.answer-explanation-stack {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  gap: 15px;
+  margin-top: 20px;
 }
 
 .card-footer-minimal {
@@ -600,16 +685,18 @@
 }
 
 .explanation-bubble {
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(15, 23, 42, 0.4);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
   padding: 24px;
   border-radius: 20px;
-  font-size: 0.95rem;
+  font-size: 0.92rem;
   line-height: 1.6;
-  color: #cad1db;
+  color: #f8fafc; /* Contraste máximo demandado */
   text-align: left;
   width: 100%;
-  box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+  margin-top: 10px;
 }
 
 .card-front {
@@ -627,13 +714,13 @@
 ══════════════════════════════════════ */
 .study-controls {
   position: absolute;
-  bottom: 0;
+  bottom: 30px;
   left: 0;
   right: 0;
-  padding: 40px;
   display: flex;
   justify-content: center;
-  z-index: 100;
+  z-index: 200;
+  padding: 0 40px;
 }
 
 .srs-panel {
@@ -666,7 +753,6 @@
   font-size: 0.75rem;
   font-weight: 800;
   color: var(--btn-color); /* Usar a cor sutil nativa do botão */
-  text-transform: uppercase;
   letter-spacing: 0.05em;
 }
 
@@ -709,146 +795,191 @@
   box-shadow: none;
 }
 
-
-/* ══════════════════════════════════════
-   UTILITIES
-══════════════════════════════════════ */
-.card-index-indicator {
-  position: absolute;
-  bottom: 30px;
-  left: 380px;
-  font-size: 0.65rem;
-  font-weight: 800;
-  color: var(--text-subtle);
-  letter-spacing: 0.2em;
-  text-transform: uppercase;
-}
-
 /* Scrollbar — oculta mas funcional */
 ::-webkit-scrollbar { width: 0; height: 0; }
 * { scrollbar-width: none; }
 
 /* ══════════════════════════════════════
-   RESPONSIVE DESIGN (MOBILE & TABLET)
-══════════════════════════════════════ */
+   MOBILE RESPONSIVENESS (100% Adaptation)
+   ══════════════════════════════════════ */
 @media (max-width: 1024px) {
   .study-main-layout {
     grid-template-columns: 1fr;
-    grid-template-rows: auto 1fr;
   }
   
   .study-sidebar {
-    padding: 20px;
-    height: 180px;
-    border-left: none;
-    border-bottom: 1px solid var(--border-subtle);
-    order: -1; /* Move to top on tablets */
-  }
-
-  .card-stack-area {
-    min-height: 100px;
-  }
-  
-  .stack-card {
-    height: 70px;
-    padding: 10px;
-  }
-
-  .study-content-area {
-    padding: 30px 20px 120px 20px; /* Space for fixed bottom controls */
-  }
-  
-  .flashcard-container {
-    height: 420px;
+    display: none; /* Hide sidebar on tablet/mobile to focus on current card */
   }
 }
 
 @media (max-width: 768px) {
   .study-header {
-    height: 70px;
+    height: 60px;
     padding: 0 20px;
   }
-  
+
   .brand-text {
-    display: none; /* Hide text on very small screens */
+    display: none; /* Hide text on small screens, keep icon */
   }
-  
-  .study-sidebar {
-    display: none; /* Hide the visual stack entirely on mobile to save vertical space */
+
+  .header-center {
+    max-width: 200px;
   }
-  
+
   .study-content-area {
     padding: 20px 15px 140px 15px; /* Extra bottom padding for multi-row SRS buttons */
   }
 
-  .flashcard-container {
-    height: 380px;
+  .card-stack-centralizer, .flashcard-container, .centred-background-stack {
+    height: 420px;
+    max-width: 100%;
   }
-  
+
   .card-face {
-    padding: 30px 25px;
+    padding: 25px 20px;
   }
-  
+
+  .header-breadcrumb {
+    font-size: 0.55rem;
+    flex-wrap: wrap;
+    gap: 4px;
+    top: 10px;
+  }
+
   .card-question-bold {
-    font-size: 1.1rem;
+    font-size: 1rem;
   }
-  
+
   .card-answer-centered {
-    font-size: 1.3rem;
+    font-size: 1.4rem;
   }
-  
-  .explanation-bubble {
-    font-size: 0.85rem;
-    padding: 16px;
-  }
-  
-  .card-header-technical {
-    left: 20px;
-    right: 20px;
-  }
-  
+
   .study-controls {
-    padding: 15px;
-    bottom: 10px;
+    bottom: 20px;
+    padding: 0 15px;
   }
-  
+
   .srs-panel {
-    padding: 10px;
     width: 100%;
-    max-width: 380px;
-    margin: 0 auto;
+    padding: 8px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
   }
-  
+
   .srs-grid {
     display: flex;
     flex-wrap: wrap;
     justify-content: center;
-    gap: 8px;
+    gap: 6px;
+  }
+
+  .srs-btn {
+    min-width: 80px;
+    padding: 8px 12px;
+    flex: 1 0 auto;
+  }
+
+  .srs-label {
+    font-size: 0.65rem;
+  }
+
+  .srs-desc {
+    display: none; /* Hide descriptions on small screens for better fit */
+  }
+
+  .explanation-bubble {
+    padding: 16px;
+    font-size: 0.85rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .card-stack-centralizer, .flashcard-container, .centred-background-stack {
+    height: 380px;
+  }
+
+  .card-question-bold {
+    font-size: 0.95rem;
+  }
+
+  .card-answer-centered {
+    font-size: 1.25rem;
   }
   
   .srs-btn {
-    flex: 1 1 calc(33% - 8px);
-    min-width: 65px;
-    padding: 8px 4px;
-    border-radius: 12px;
+    min-width: 70px;
   }
   
-  .srs-label {
-    font-size: 0.6rem;
+  .progress-group {
+    scale: 0.8;
   }
-  
-  .srs-desc {
-    display: none; /* Hide long descriptions on small buttons */
-  }
-  
-  .srs-interval {
-    font-size: 0.5rem;
-  }
-  
-  .card-index-indicator {
-    left: 50%;
-    transform: translateX(-50%);
-    bottom: auto;
-    top: -25px;
-  }
+}
+
+/* =========================================================
+   SUBTLE FEEDBACK EFFECTS
+   ========================================================= */
+.subtle-feedback-container {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 1000;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  overflow: hidden;
+  border-radius: inherit;
+}
+
+.subtle-effect-layer {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+/* Automático: Confetti */
+.subtle-confetti-root {
+  position: relative;
+  width: 1px;
+  height: 1px;
+}
+
+.subtle-dot {
+  position: absolute;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  left: -3px;
+  top: -3px;
+  box-shadow: 0 0 10px currentColor;
+}
+
+/* Rápido: Fast Streak */
+.subtle-fast-streak {
+  position: absolute;
+  width: 200%;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, rgba(56, 189, 248, 0.8), transparent);
+  box-shadow: 0 0 15px rgba(56, 189, 248, 0.5);
+  top: 50%;
+  left: -50%;
+  transform-origin: center;
+}
+
+/* Pensei: Pulse */
+.subtle-pulse-ring {
+  position: absolute;
+  width: 150px;
+  height: 150px;
+  border-radius: 50%;
+  border: 4px solid rgba(251, 191, 36, 0.6);
+  box-shadow: 0 0 20px rgba(251, 191, 36, 0.2);
+}
+
+/* Errei/Branco: Error Vignette */
+.subtle-error-vignette {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle, transparent 50%, rgba(239, 68, 68, 0.5) 150%);
 }

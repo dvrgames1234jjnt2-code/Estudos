@@ -3,7 +3,7 @@ import { motion, AnimatePresence, Reorder } from 'framer-motion';
 import { MOCK_LEVELS } from '../data/mockData';
 import { downloadFlashcardsAsTSV } from '../utils/exportUtils';
 import { handleRawTextImport, parsePastedTextToCards } from '../utils/importUtils';
-import { LayoutGrid, ListOrdered, GripVertical } from 'lucide-react';
+import { LayoutGrid, ListOrdered, GripVertical, X, Play } from 'lucide-react';
 import './Dashboard.css';
 
 // --- Helper Functions ---
@@ -40,7 +40,7 @@ const MateriaCard = ({ materia, topics, flashcards, onStartStudy, onDragOverTopi
         {dueCards.length > 0 && (
           <div className="materia-due-badge">
             <span className="pulse-dot"></span>
-            {dueCards.length} prontos
+            <span className="due-count">{dueCards.length} prontos</span>
           </div>
         )}
       </div>
@@ -110,13 +110,12 @@ const MateriaCard = ({ materia, topics, flashcards, onStartStudy, onDragOverTopi
                         <div className="topic-due-list">
                           <p className="expansion-label">Prontos p/ Hoje ({topicDue.length})</p>
                           <div className="due-questions-scroll">
-                            {topicDue.slice(0, 10).map(card => (
+                            {topicDue.map(card => (
                               <div key={card.id} className="due-question-item">
                                 <span className="due-bullet">•</span>
-                                <span className="due-text">{card.pergunta}</span>
+                                <span className="due-text">{card.frente || card.pergunta}</span>
                               </div>
                             ))}
-                            {topicDue.length > 10 && <p className="more-cards-hint">+ {topicDue.length - 10} outros...</p>}
                           </div>
                         </div>
                       )}
@@ -192,6 +191,10 @@ const ReorderableCardList = ({ cards, setCards }) => {
 const DueCardsFeed = ({ dueCards, onStartStudy }) => {
   const [viewMode, setViewMode] = useState('decks'); // 'decks' or 'list'
   const [orderedCards, setOrderedCards] = useState([]);
+  const [selectedDeckToView, setSelectedDeckToView] = useState(null);
+
+  const todayFormat = new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' });
+  const todayCapitalized = todayFormat.charAt(0).toUpperCase() + todayFormat.slice(1);
 
   useEffect(() => {
     setOrderedCards(dueCards);
@@ -217,7 +220,7 @@ const DueCardsFeed = ({ dueCards, onStartStudy }) => {
       <div className="feed-header">
         <div className="feed-title-wrap">
           <h2 className="feed-title">Sua Agenda</h2>
-          <p className="feed-subtitle">{dueCards.length} cartões aguardando revisão</p>
+          <p className="feed-subtitle">{todayCapitalized} • {dueCards.length} cartões aguardando revisão</p>
         </div>
 
         <div className="feed-controls">
@@ -256,7 +259,7 @@ const DueCardsFeed = ({ dueCards, onStartStudy }) => {
                 cards={cards} 
                 materia={materia} 
                 index={index}
-                onClick={() => onStartStudy(cards)} 
+                onClick={() => setSelectedDeckToView({ materia, cards })} 
               />
             ))}
           </motion.div>
@@ -268,6 +271,64 @@ const DueCardsFeed = ({ dueCards, onStartStudy }) => {
             exit={{ opacity: 0, x: -20 }}
           >
             <ReorderableCardList cards={orderedCards} setCards={setOrderedCards} />
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {selectedDeckToView && (
+          <motion.div 
+            className="deck-preview-modal-overlay"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={(e) => {
+              if (e.target.classList.contains('deck-preview-modal-overlay')) {
+                setSelectedDeckToView(null);
+              }
+            }}
+          >
+            <motion.div 
+              className="deck-preview-modal"
+              initial={{ y: 50, opacity: 0, scale: 0.95 }}
+              animate={{ y: 0, opacity: 1, scale: 1 }}
+              exit={{ y: 20, opacity: 0, scale: 0.95 }}
+              transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+            >
+              <div className="deck-preview-header">
+                <div className="deck-preview-title">
+                  <span className="deck-preview-icon">{SUBJECT_ICONS[selectedDeckToView.materia] || SUBJECT_ICONS.default}</span>
+                  <h3>{selectedDeckToView.materia}</h3>
+                  <span className="deck-preview-count">{selectedDeckToView.cards.length} cards</span>
+                </div>
+                <button className="deck-preview-close" onClick={() => setSelectedDeckToView(null)}>
+                  <X size={20} />
+                </button>
+              </div>
+
+              <div className="deck-preview-list">
+                {selectedDeckToView.cards.map((card, idx) => (
+                  <div key={card.id || idx} className="deck-preview-item">
+                    <span className="deck-preview-idx">{idx + 1}</span>
+                    <div className="deck-preview-content">
+                      <p className="deck-preview-question">{card.frente || card.pergunta}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="deck-preview-footer">
+                <button 
+                  className="deck-preview-start-btn" 
+                  onClick={() => {
+                    onStartStudy(selectedDeckToView.cards);
+                    setSelectedDeckToView(null);
+                  }}
+                >
+                  <Play size={16} fill="currentColor" /> Estudar Deck
+                </button>
+              </div>
+            </motion.div>
           </motion.div>
         )}
       </AnimatePresence>
@@ -560,20 +621,24 @@ export default function Dashboard({ onStartStudy, flashcards, isLoading, fetchEr
                   </div>
                 </div>
 
-                <div className="input-field" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                  <label style={{ fontSize: '0.85rem', fontWeight: 600, color: 'white' }}>Nível do Cartão (Feedback)</label>
-                  <select 
-                    style={{ padding: '12px', borderRadius: '12px', background: 'rgba(15, 15, 20, 0.9)', border: '1px solid rgba(255,255,255,0.1)', color: 'white' }}
-                    value={bulkConfigState.feedback || ''}
-                    onChange={e => setBulkConfigState({ ...bulkConfigState, feedback: e.target.value })}
-                  >
-                    <option value="">-- Não Alterar --</option>
-                    <option value="Esqueci">Recomeçar (Esqueci)</option>
-                    <option value="Aprendendo">Aprendendo</option>
-                    <option value="Parcial">Sei, mas não tudo (Parcial)</option>
-                    <option value="Esforço">Demorei, mas acertei (Esforço)</option>
-                    <option value="Dominado">Excelente (Dominado)</option>
-                  </select>
+                <div className="input-field premium-field">
+                  <label>Nível do Cartão (Feedback)</label>
+                  <div className="premium-select-wrapper">
+                    <select 
+                      className="premium-select"
+                      value={bulkConfigState.feedback || ''}
+                      onChange={e => setBulkConfigState({ ...bulkConfigState, feedback: e.target.value })}
+                    >
+                      <option value="">-- Não Alterar --</option>
+                      <option value="Novo">Novo</option>
+                      <option value="Esqueci">Recomeçar (Esqueci)</option>
+                      <option value="Aprendendo">Aprendendo</option>
+                      <option value="Parcial">Sei, mas não tudo (Parcial)</option>
+                      <option value="Esforço">Demorei, mas acertei (Esforço)</option>
+                      <option value="Dominado">Excelente (Dominado)</option>
+                    </select>
+                    <span className="select-arrow">▾</span>
+                  </div>
                 </div>
               </div>
 

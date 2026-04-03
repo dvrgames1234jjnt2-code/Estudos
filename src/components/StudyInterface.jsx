@@ -1,8 +1,9 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { motion, AnimatePresence, useMotionValue, useTransform, useAnimation } from 'framer-motion';
 import './StudyInterface.css';
+import SubtleFeedbackEffects from './SubtleFeedbackEffects';
 
-const MAX_DECK_VISIBLE = 5;
+const MAX_VISUAL_STACK = 5;
 
 const SUBJECT_ICONS = {
   'Conhecimentos Bancários': '🏛️',
@@ -60,16 +61,17 @@ const StackCard = ({ card, index, total, onPromote }) => {
   const subjectIcon = SUBJECT_ICONS[card.subject] || SUBJECT_ICONS.default;
   const isTop = index === 0;
 
-  const stackOffsetY = index * 9;
-  const stackScale = 1 - index * 0.045;
-  const stackRotate = (index % 2 === 0 ? 1 : -1) * index * 1.2;
+  const visualIndex = Math.min(index, MAX_VISUAL_STACK);
+  const stackOffsetY = visualIndex * 10;
+  const stackScale = 1 - visualIndex * 0.05;
+  const stackRotate = (index % 2 === 0 ? 1 : -1) * visualIndex * 1.2;
 
   const x = useMotionValue(0);
   const dragRotate = useTransform(x, [-150, 0, 150], [-12, stackRotate, 12]);
 
   return (
     <motion.div
-      layoutId={`fly-card-${card.id}`}
+      layoutId={`card-${card.id}`}
       className={`stack-card ${isTop ? 'is-top' : ''}`}
       style={{
         zIndex: total - index,
@@ -77,9 +79,9 @@ const StackCard = ({ card, index, total, onPromote }) => {
         scale: stackScale,
         rotate: isTop ? dragRotate : stackRotate,
         x: isTop ? x : 0,
-        cursor: isTop ? 'grab' : 'default',
+        cursor: 'pointer',
       }}
-      animate={{ opacity: 1 - index * 0.1 }}
+      animate={{ opacity: 1 - Math.min(index, MAX_VISUAL_STACK) * 0.15 }}
       exit={{ opacity: 0, transition: { duration: 0.15 } }}
       drag={isTop ? 'x' : false}
       dragSnapToOrigin
@@ -89,11 +91,12 @@ const StackCard = ({ card, index, total, onPromote }) => {
       onDragEnd={(_, info) => {
         if (isTop && Math.abs(info.offset.x) > 70) onPromote(card);
       }}
-      onClick={() => isTop && onPromote(card)}
+      onClick={() => onPromote(card)}
       transition={{
-        layout: { type: 'spring', stiffness: 420, damping: 36 },
+        layout: { type: 'spring', stiffness: 500, damping: 30, mass: 0.8 },
         opacity: { duration: 0.2 }
       }}
+      whileHover={isTop ? { y: -8, scale: 1.02 } : {}}
     >
       <div className="stack-card-inner">
         <div className="stack-card-icon">{subjectIcon}</div>
@@ -101,16 +104,37 @@ const StackCard = ({ card, index, total, onPromote }) => {
           <span className="stack-card-subject">{card.subject}</span>
           <span className="stack-card-topic">{card.topic || card.assunto || '—'}</span>
         </div>
-        {isTop && <div className="stack-card-badge">Próximo</div>}
+        {isTop && (
+          <motion.div 
+            className="stack-card-badge"
+            animate={{ scale: [1, 1.1, 1] }}
+            transition={{ repeat: Infinity, duration: 2 }}
+          >
+            Próximo
+          </motion.div>
+        )}
       </div>
     </motion.div>
   );
 };
 
 /* ══════════════════════════════════════
+   CENTRED BACKGROUND STACK
+   (Decorative cards behind the active one)
+   ══════════════════════════════════════ */
+const StudyBackgroundStack = () => {
+  return (
+    <div className="centred-background-stack">
+      <div className="bg-card-shadow card-depth-2" />
+      <div className="bg-card-shadow card-depth-1" />
+    </div>
+  );
+};
+
+/* ══════════════════════════════════════
    ACTIVE FLASHCARD
    (The main card being studied)
-    ══════════════════════════════════════ */
+   ══════════════════════════════════════ */
 const ActiveFlashcard = ({ card, isFlipped, onFlip }) => {
   const [showExplanation, setShowExplanation] = useState(false);
 
@@ -120,9 +144,22 @@ const ActiveFlashcard = ({ card, isFlipped, onFlip }) => {
 
   return (
     <motion.div
-      layoutId={`fly-card-${card.id}`}
+      layoutId={`card-${card.id}`}
+      layout="position"
       className="flashcard-container"
-      transition={{ layout: { type: 'spring', stiffness: 420, damping: 36 } }}
+      initial={false}
+      animate={{ opacity: 1, x: 0, y: 0 }}
+      exit={{ 
+        opacity: 0,
+        scale: 0.9,
+        transition: { duration: 0.2 } 
+      }}
+      transition={{ 
+        type: 'spring', 
+        stiffness: 500, 
+        damping: 40,
+        mass: 1
+      }}
     >
       <motion.div 
         className="flashcard" 
@@ -130,8 +167,7 @@ const ActiveFlashcard = ({ card, isFlipped, onFlip }) => {
         initial={false}
         animate={{ rotateY: isFlipped ? 180 : 0 }}
         transition={{ 
-          rotateY: { type: 'spring', stiffness: 260, damping: 20 },
-          layout: { type: 'spring', stiffness: 420, damping: 36 }
+          rotateY: { type: 'spring', stiffness: 260, damping: 20 }
         }}
         style={{ transformStyle: 'preserve-3d' }}
       >
@@ -139,7 +175,7 @@ const ActiveFlashcard = ({ card, isFlipped, onFlip }) => {
         <div className="card-face card-front">
           <div className="card-glare" />
           <div className="card-header-technical">
-            <div className="header-main-title">{(card.materia || 'MATÉRIA DESCONHECIDA').toUpperCase()}</div>
+            <div className="header-main-title">{card.materia || 'Matéria Desconhecida'}</div>
             <div className="header-breadcrumb">
               <span className="bc-item">{card.topico}</span>
               <span className="bc-sep">/</span>
@@ -161,7 +197,7 @@ const ActiveFlashcard = ({ card, isFlipped, onFlip }) => {
 
           <div className="card-center-focus technical-front">
             <div className="question-type-label">
-              <span className="type-badge">{(card.tipo || 'O QUE É?').toUpperCase()} ↑</span>
+              <span className="type-badge">{card.tipo || 'O que é?'} ↑</span>
             </div>
             
             <div className="main-question-container">
@@ -170,7 +206,7 @@ const ActiveFlashcard = ({ card, isFlipped, onFlip }) => {
           </div>
 
           <div className="card-footer-minimal">
-            <span className="hint-glow">REVELAR RESPOSTA</span>
+            <span className="hint-glow">Revelar Resposta</span>
           </div>
         </div>
 
@@ -178,13 +214,25 @@ const ActiveFlashcard = ({ card, isFlipped, onFlip }) => {
         <div className="card-face card-back">
           <motion.div layout className="card-center-content scroll-y back-face-content">
             {/* Context Question (Small preview of the front) */}
-            <motion.div layout className="back-context-question-wrapper">
-              <span className="back-context-label">CONTEXTO</span>
+            <motion.div 
+              layout 
+              transition={{ type: 'spring', stiffness: 500, damping: 40 }}
+              className="back-context-question-wrapper"
+            >
+              <span className="back-context-label">Contexto</span>
               <p className="back-context-text">{card.front}</p>
             </motion.div>
 
-            <motion.div layout className="answer-explanation-stack">
-              <motion.div layout className="card-answer-centered">
+            <motion.div 
+              layout 
+              transition={{ type: 'spring', stiffness: 500, damping: 40 }}
+              className="answer-explanation-stack"
+            >
+              <motion.div 
+                layout 
+                transition={{ type: 'spring', stiffness: 500, damping: 40 }}
+                className="card-answer-centered"
+              >
                 {card.back}
               </motion.div>
               
@@ -193,14 +241,12 @@ const ActiveFlashcard = ({ card, isFlipped, onFlip }) => {
                   <motion.div
                     layout
                     className="explanation-bubble"
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, scale: 0.95, y: 5 }}
                     transition={{ 
-                      type: 'spring', 
-                      damping: 40, 
-                      stiffness: 400,
-                      layout: { type: 'spring', damping: 40, stiffness: 400, bounce: 0 }
+                      opacity: { duration: 0.15 },
+                      layout: { type: 'spring', stiffness: 500, damping: 40 }
                     }}
                   >
                     {card.explicacao}
@@ -209,6 +255,8 @@ const ActiveFlashcard = ({ card, isFlipped, onFlip }) => {
               </AnimatePresence>
             </motion.div>
           </motion.div>
+
+
 
           <div className="card-footer-minimal">
             {card.explicacao && (
@@ -309,9 +357,8 @@ const StudyInterface = ({ onExit, flashcards = [], onUpdateCard, configLevels = 
   const activeCard = deck.find(c => c.id === activeId);
   const deckCards = deck.filter(c => c.id !== activeId);
   
-  // Combine pending cards and completed cards so that completed cards "go to the back" visually
-  const visualStackBase = [...deckCards, ...completedCards];
-  const visibleDeck = visualStackBase.slice(0, MAX_DECK_VISIBLE);
+  // Render entire stack so layout animations track items moving to the back
+  const visibleDeck = [...deckCards, ...completedCards];
   
   const totalCards = flashcards.length;
   // Progress can be visually derived from carga limits or just simple completed vs total
@@ -419,6 +466,9 @@ const StudyInterface = ({ onExit, flashcards = [], onUpdateCard, configLevels = 
 
   return (
     <div className="study-interface premium-theme">
+      {/* Dynamic Background Effects */}
+      <div className="study-ambient-glow" />
+
       <header className="study-header">
         <div className="header-brand">
           <div className="brand-logo">❂</div>
@@ -449,16 +499,24 @@ const StudyInterface = ({ onExit, flashcards = [], onUpdateCard, configLevels = 
       <main className="study-main-layout">
         {/* Left: Active Card */}
         <div className="study-content-area">
-          {activeCard && (
-            <ActiveFlashcard
-              key={activeCard.id}
-              card={activeCard}
-              isFlipped={isFlipped}
-              onFlip={() => setIsFlipped(!isFlipped)}
-            />
-          )}
+          {/* Card Overlap Zone: All children here stack vertically in the same space */}
+          <div className="card-stack-centralizer">
+            <StudyBackgroundStack />
+            <AnimatePresence mode="popLayout" initial={false}>
+              {activeCard && (
+                <ActiveFlashcard
+                  key={activeCard.id}
+                  card={activeCard}
+                  isFlipped={isFlipped}
+                  onFlip={() => setIsFlipped(!isFlipped)}
+                />
+              )}
+            </AnimatePresence>
+          </div>
 
-          {/* Footer: SRS Controls */}
+          <SubtleFeedbackEffects event={evaluationEvent} />
+
+          {/* Footer: SRS Controls - Fixed at the bottom to avoid pushing the cards */}
           <footer className="study-controls">
             <AnimatePresence>
               {isFlipped && (
