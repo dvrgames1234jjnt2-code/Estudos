@@ -1,11 +1,15 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;600;700&display=swap');
 
 :root {
-  --bg-color: #020617; /* Matches reference deep navy */
+  --bg-color: #020617;
+  /* Matches reference deep navy */
   --bg-deep: #010409;
-  --bg-widget: #0f172a; /* Solid Widget Color */
-  --accent-blue: #3b82f6; /* Solid Blue Bar */
-  --accent-green: #10b981; /* Solid Green for success/focus */
+  --bg-widget: #0f172a;
+  /* Solid Widget Color */
+  --accent-blue: #3b82f6;
+  /* Solid Blue Bar */
+  --accent-green: #10b981;
+  /* Solid Green for success/focus */
   --text-white: #ffffff;
   --text-primary: #f8fafc;
   --text-secondary: #94a3b8;
@@ -27,36 +31,49 @@ body {
   color: var(--text-primary);
   min-height: 100vh;
   overflow-x: hidden;
+  -webkit-tap-highlight-color: transparent;
 }
 
-h1, h2, h3 {
+@media (max-width: 768px) {
+  html {
+    font-size: 14px;
+  }
+}
+
+h1,
+h2,
+h3 {
   font-family: 'Outfit', sans-serif;
-  color: var(--accent-color);
 }
 
 .glass {
-  background: var(--bg-card);
+  background: var(--bg-widget);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
-  border: 1px solid var(--glass-border);
-  box-shadow: var(--shadow-premium);
+  border: 1px solid var(--border-subtle);
+  box-shadow: var(--shadow-widget);
   border-radius: 12px;
 }
 
 button {
   cursor: pointer;
-  transition: all 0.3s ease;
+  transition: all 0.2s ease;
   border: none;
   border-radius: 8px;
   font-family: 'Outfit', sans-serif;
   font-weight: 600;
-}
-
-button:hover {
-  transform: translateY(-2px);
-  filter: brightness(1.2);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
 }
 
 button:active {
-  transform: translateY(0px);
+  transform: scale(0.96);
+}
+
+@media (max-width: 600px) {
+  .desktop-only {
+    display: none !important;
+  }
 }

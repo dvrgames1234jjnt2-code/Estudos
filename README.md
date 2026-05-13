@@ -1,4 +1,4 @@
-# 🧪 Mindful Scholar: Premium Flashcard Trainer
+# 🧪 Flashcards: Premium Flashcard Trainer
 
 A sophisticated, industrial-inspired flashcard trainer designed for deep focus and efficient learning. Built with **React 19**, **Vite**, and **Framer Motion 12**, it features a tactile card-stack interface, gamified SRS (Spaced Repetition System) feedback, and seamless **Notion** integration.
 

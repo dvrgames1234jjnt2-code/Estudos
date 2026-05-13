@@ -51,7 +51,7 @@ const FlashcardTrainer = () => {
       <header className="mindful-header">
         <div className="header-left">
           <button className="exit-btn"><span>✕</span><span>EXIT SESSION</span></button>
-          <div className="app-brand">Mindful Scholar</div>
+          <div className="app-brand">Flashcards</div>
         </div>
         <div className="progress-section">
           <div className="progress-label">

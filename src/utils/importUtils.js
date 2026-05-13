@@ -35,7 +35,9 @@ export function parseTSVToCards(tsvString) {
         "Deck_pai": "deckPai",
         "Materia": "materia",
         "Topico": "topico",
-        "Assunto": "assunto"
+        "Assunto": "assunto",
+        "Tipo": "tipo",
+        "Categoria": "categoria"
       };
 
       const key = mapping[header] || header;
@@ -75,6 +77,8 @@ export function parsePastedTextToCards(text, meta) {
         materia: meta.materia || "",
         topico: meta.topico || "",
         assunto: meta.assunto || "",
+        tipo: parts[4] || "",
+        categoria: parts[5] || "",
         // Defaults for new cards
         status: "Novo",
         feedback: "desconhecido",

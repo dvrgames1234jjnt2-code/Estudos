@@ -54,6 +54,35 @@ const extractUrl = (property) => {
   return property.url;
 };
 
+/**
+ * Universal extractor for string-convertible properties.
+ * Handles: Select, Multi-Select (first item), Formula, Rich Text, Title.
+ */
+const extractFlexible = (property) => {
+  if (!property) return '';
+  
+  // 1. Select
+  if (property.select) return property.select.name || '';
+  
+  // 2. Multi-Select (take first)
+  if (property.multi_select && property.multi_select.length > 0) {
+    return property.multi_select[0].name || '';
+  }
+  
+  // 3. Formula
+  if (property.formula) {
+    return String(property.formula.string || property.formula.number || '');
+  }
+
+  // 4. Rich Text or Title
+  const textArr = property.rich_text || property.title || [];
+  if (textArr.length > 0) {
+    return textArr.map(t => t.plain_text).join('');
+  }
+
+  return '';
+};
+
 // Converte a linha inteira (page) que vem do Notion para um objeto limpo JS
 export function parseNotionCard(page) {
   const props = page.properties;
@@ -67,16 +96,17 @@ export function parseNotionCard(page) {
     referencia: extractUrl(props['Referencia']),
     explicacao: extractText(props['Explicacao']),
     
-    // Categorias / Rich Text / Selects
-    deck: extractText(props['Deck']),          // rich_text
-    deckPai: extractText(props['Deck_pai']),      // rich_text
-    feedback: extractText(props['Feedback']),  // rich_text
-    ultimoFeedback: extractText(props['Ultimo Feedback']), // rich_text
-    status: extractSelect(props['Status']),    // select
-    materia: extractText(props['Materia']),    // rich_text
-    topico: extractText(props['Topico']),      // rich_text
-    assunto: extractText(props['Assunto']),    // rich_text
-    subAssunto: extractText(props['Sub_Assunto']), // rich_text
+    // Categorias / Rich Text / Selects (Flexible Extraction)
+    deck: extractFlexible(props['Deck']),
+    deckPai: extractFlexible(props['Deck_pai']),
+    feedback: extractFlexible(props['Feedback']),
+    ultimoFeedback: extractFlexible(props['Ultimo Feedback']),
+    // Schema confirms 'Status' is rich_text in some databases, so extractFlexible is safer
+    status: extractFlexible(props['Status']), 
+    materia: extractFlexible(props['Materia']),
+    topico: extractFlexible(props['Topico']),
+    assunto: extractFlexible(props['Assunto']),
+    subAssunto: extractFlexible(props['Sub_Assunto']),
     
     // Números
     acertos: extractNumber(props['Acertos']),
@@ -86,9 +116,9 @@ export function parseNotionCard(page) {
     proximaRevisao: extractDate(props['Proxima_Revisao']),
     ultimaRevisao: extractDate(props['Ultima_Revisao']),
     
-    // Novos campos solicitados
-    tipo: extractSelect(props['Tipo']),
-    categoria: extractSelect(props['Categoria']),
+    // Novos campos solicitados (Flexible Extraction)
+    tipo: extractFlexible(props['Tipo']),
+    categoria: extractFlexible(props['Categoria']),
     
     // Novo: Tempo da sessao 
     score: extractNumber(props['Score']) || 0,
@@ -101,26 +131,38 @@ export function parseNotionCard(page) {
 // -----------------------------------------------------
 
 /**
- * Busca todos os flashcards do Notion usando filtro e paginação rudimentar
- * O proxy do Vite vai interceptar '/notion-api' e jogar pra 'https://api.notion.com'
+ * Busca todos os flashcards do Notion usando paginação completa.
  */
 export async function fetchCardsFromNotion() {
   try {
-    const response = await fetch(`/api/notion/databases/${NOTION_DATABASE_ID}/query`, {
-      method: 'POST',
-      headers: getHeaders(),
-      body: JSON.stringify({
-        // Adicione page_size ou filters aqui se a base for muito grande
-        // filter: { property: "Status", select: { does_not_equal: "Arquivado" } }
-      })
-    });
+    let allResults = [];
+    let hasMore = true;
+    let startCursor = undefined;
 
-    if (!response.ok) {
-      throw new Error(`Erro buscando cartões: ${response.status} ${await response.text()}`);
+    while (hasMore) {
+      const response = await fetch(`/api/notion/databases/${NOTION_DATABASE_ID}/query`, {
+        method: 'POST',
+        headers: getHeaders(),
+        cache: 'no-store',
+        body: JSON.stringify({
+          start_cursor: startCursor,
+          sorts: [
+            { timestamp: "last_edited_time", direction: "descending" }
+          ]
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error(`Erro buscando cartões: ${response.status} ${await response.text()}`);
+      }
+
+      const data = await response.json();
+      allResults = [...allResults, ...data.results];
+      hasMore = data.has_more;
+      startCursor = data.next_cursor;
     }
 
-    const data = await response.json();
-    return data.results.map(parseNotionCard);
+    return allResults.map(parseNotionCard);
   } catch (error) {
     console.error("Erro no fetchCardsFromNotion:", error);
     throw error;
@@ -128,32 +170,62 @@ export async function fetchCardsFromNotion() {
 }
 
 
+// Paleta de cores por nome de nível SRS
+const NIVEL_COLORS = {
+  'Esqueci':    '#ef4444',
+  'Errei':      '#f97316',
+  'Pensei':     '#eab308',
+  'Rápido':     '#22c55e',
+  'Automático': '#6366f1',
+};
+const DEFAULT_NIVEL_COLOR = '#64748b';
+
 /**
- * Search all config levels
+ * Busca todas as configurações de níveis, com paginação.
  */
 export async function fetchConfigFromNotion() {
   try {
-    const response = await fetch(`/api/notion/databases/${CONFIG_DATABASE_ID}/query`, {
-      method: 'POST',
-      headers: getHeaders(),
-      body: JSON.stringify({})
-    });
+    let allResults = [];
+    let hasMore = true;
+    let startCursor = undefined;
 
-    if (!response.ok) {
-      throw new Error(`Erro buscando configs: ${response.status} ${await response.text()}`);
+    while (hasMore) {
+      const response = await fetch(`/api/notion/databases/${CONFIG_DATABASE_ID}/query`, {
+        method: 'POST',
+        headers: getHeaders(),
+        cache: 'no-store',
+        body: JSON.stringify({
+          start_cursor: startCursor
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error(`Erro buscando configs: ${response.status} ${await response.text()}`);
+      }
+
+      const data = await response.json();
+      allResults = [...allResults, ...data.results];
+      hasMore = data.has_more;
+      startCursor = data.next_cursor;
     }
 
-    const data = await response.json();
-    return data.results.map(page => {
+    return allResults.map(page => {
       const p = page.properties;
+      const nivel = extractText(p['Nivel']);
+      
+      // Schema observation: Carga, Limite e Quantidade are rich_text in Notion.
       return {
-        id: page.id,
-        nivel: extractText(p['Nivel']),
+        id:   nivel,
+        name: nivel,
+        color: NIVEL_COLORS[nivel] || DEFAULT_NIVEL_COLOR,
+        nivel,
+        notionId: page.id,
         descricao: extractText(p['Descrição']),
         carga: Number(extractText(p['Carga'])) || 0,
         fatorDias: extractNumber(p['Fato de dias']),
         qtdDeCards: Number(extractText(p['Quantidade de cards'])) || 0,
         limiteDeCard: Number(extractText(p['Limite de card'])) || 1,
+        tempoDaSessao: extractNumber(p['Tempo da sessao']) || 0,
       };
     });
   } catch (error) {
@@ -164,13 +236,10 @@ export async function fetchConfigFromNotion() {
 
 /**
  * Atualiza um único cartão após uma revisão (Feedback do SRS).
- * @param {string} pageId - ID original do Notion block/page do cartão
- * @param {object} updates - Objeto JS com os campos que se deseja atualizar
  */
 export async function updateCardInNotion(pageId, updates) {
   const properties = {};
 
-  // Mapeamento dinâmico reverso JS -> Payload Notion (Datas confirmadas como Date Type)
   if (updates.proximaRevisao !== undefined) {
     properties['Proxima_Revisao'] = { date: updates.proximaRevisao ? { start: updates.proximaRevisao.split('T')[0] } : null };
   }
@@ -184,33 +253,31 @@ export async function updateCardInNotion(pageId, updates) {
     properties['Erros'] = { number: updates.erros };
   }
   if (updates.feedback !== undefined) {
-    // Feedback is a rich_text field
     properties['Feedback'] = { rich_text: updates.feedback ? [{ text: { content: String(updates.feedback) } }] : [] };
   }
   if (updates.ultimoFeedback !== undefined) {
-    // Ultimo Feedback is a rich_text field
     properties['Ultimo Feedback'] = { rich_text: updates.ultimoFeedback ? [{ text: { content: String(updates.ultimoFeedback) } }] : [] };
   }
+  
+  // Update 'Status' as rich_text if that's what's in the DB
   if (updates.status !== undefined) {
-    properties['Status'] = { select: updates.status ? { name: String(updates.status) } : null };
+    properties['Status'] = { rich_text: [{ text: { content: String(updates.status) } }] };
   }
 
-  // Support categories in update too (useful for bulk topic re-categorization)
+  // Support categories in update
   if (updates.deck !== undefined) properties['Deck'] = { rich_text: [{ text: { content: String(updates.deck) } }] };
   if (updates.deckPai !== undefined) properties['Deck_pai'] = { rich_text: [{ text: { content: String(updates.deckPai) } }] };
   if (updates.materia !== undefined) properties['Materia'] = { rich_text: [{ text: { content: String(updates.materia) } }] };
   if (updates.topico !== undefined) properties['Topico'] = { rich_text: [{ text: { content: String(updates.topico) } }] };
   if (updates.assunto !== undefined) properties['Assunto'] = { rich_text: [{ text: { content: String(updates.assunto) } }] };
   if (updates.subAssunto !== undefined) properties['Sub_Assunto'] = { rich_text: [{ text: { content: String(updates.subAssunto) } }] };
-  if (updates.tipo !== undefined) properties['Tipo'] = { select: updates.tipo ? { name: String(updates.tipo) } : null };
-  if (updates.categoria !== undefined) properties['Categoria'] = { select: updates.categoria ? { name: String(updates.categoria) } : null };
-
+  if (updates.tipo !== undefined) properties['Tipo'] = { rich_text: [{ text: { content: String(updates.tipo) } }] };
+  if (updates.categoria !== undefined) properties['Categoria'] = { rich_text: [{ text: { content: String(updates.categoria) } }] };
 
   if (updates.score !== undefined) {
     properties['Score'] = { number: Number(updates.score) };
   }
 
-  // Se nenhum campo pra atualizar foi passado
   if (Object.keys(properties).length === 0) return true;
 
   try {
@@ -226,7 +293,7 @@ export async function updateCardInNotion(pageId, updates) {
       throw new Error(`Erro ao atualizar: ${response.status} - ${errorText}`);
     }
     
-    return await response.json(); // retorna o card atualizado
+    return await response.json();
   } catch (error) {
     console.error("Erro no updateCardInNotion:", error);
     return false;
@@ -235,7 +302,6 @@ export async function updateCardInNotion(pageId, updates) {
 
 /**
  * Cria um novo cartão no Notion.
- * @param {object} card - Objeto JS com as propriedades do cartão.
  */
 export async function createCardInNotion(card) {
   const properties = {
@@ -245,7 +311,7 @@ export async function createCardInNotion(card) {
     'Explicacao': { rich_text: [{ text: { content: String(card.explicacao || "") } }] },
     'Feedback': { rich_text: [{ text: { content: String(card.feedback || "") } }] },
     'Ultimo Feedback': { rich_text: [{ text: { content: String(card.ultimoFeedback || "") } }] },
-    'Status': { select: card.status ? { name: String(card.status) } : { name: "Novo" } },
+    'Status': { rich_text: [{ text: { content: String(card.status || "Novo") } }] },
     'Acertos': { number: Number(card.acertos || 0) },
     'Erros': { number: Number(card.erros || 0) },
     'Deck': { rich_text: [{ text: { content: String(card.deck || "") } }] },
@@ -254,11 +320,10 @@ export async function createCardInNotion(card) {
     'Topico': { rich_text: [{ text: { content: String(card.topico || "") } }] },
     'Assunto': { rich_text: [{ text: { content: String(card.assunto || "") } }] },
     'Sub_Assunto': { rich_text: [{ text: { content: String(card.subAssunto || "") } }] },
-    'Tipo': { select: card.tipo ? { name: String(card.tipo) } : null },
-    'Categoria': { select: card.categoria ? { name: String(card.categoria) } : null }
+    'Tipo': { rich_text: [{ text: { content: String(card.tipo || "") } }] },
+    'Categoria': { rich_text: [{ text: { content: String(card.categoria || "") } }] }
   };
 
-  // Datas (Apenas se existirem)
   if (card.proximaRevisao) properties['Proxima_Revisao'] = { date: { start: card.proximaRevisao.split('T')[0] } };
   if (card.ultimaRevisao) properties['Ultima_Revisao'] = { date: { start: card.ultimaRevisao.split('T')[0] } };
 

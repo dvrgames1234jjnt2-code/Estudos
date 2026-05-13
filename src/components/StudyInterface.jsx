@@ -1,7 +1,8 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { motion, AnimatePresence, useMotionValue, useTransform, useAnimation } from 'framer-motion';
-import './StudyInterface.css';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 import SubtleFeedbackEffects from './SubtleFeedbackEffects';
+import './StudyInterface.css';
 
 const MAX_VISUAL_STACK = 5;
 
@@ -22,15 +23,15 @@ const getDynamicTiers = (configLevels) => {
   const sorted = [...configLevels].sort((a, b) => a.fatorDias - b.fatorDias);
   return sorted.map((c, idx) => ({
     id: c.id || idx,
-    label: c.nivel,
-    desc: c.descricao,
-    carga: c.carga,
-    fatorDias: c.fatorDias,
-    qtdDeCards: c.qtdDeCards,
-    limiteDeCard: c.limiteDeCard,
+    label: c.nivel || c.name || 'Nível',
+    desc: c.descricao || '',
+    carga: c.carga || 0,
+    fatorDias: c.fatorDias || 0,
+    qtdDeCards: c.qtdDeCards || 0,
+    limiteDeCard: c.limiteDeCard || 1,
     interval: c.fatorDias > 0 ? `+${c.fatorDias}d` : `${c.fatorDias}d`,
-    // Color scale from red (hard) to green (easy)
-    color: ['#ef4444', '#f97316', '#eab308', '#3b82f6', '#10b981'][idx % 5],
+    // Use the color from Notion if available, otherwise use a fallback palette
+    color: c.color || ['#ef4444', '#f97316', '#eab308', '#3b82f6', '#10b981'][idx % 5],
     emoji: ['🧠', '🥶', '🤔', '⚡', '🤖'][idx % 5],
     type: ['forgot', 'partial', 'effortful', 'learning', 'mastered'][idx % 5]
   }));
@@ -93,7 +94,7 @@ const StackCard = ({ card, index, total, onPromote }) => {
       }}
       onClick={() => onPromote(card)}
       transition={{
-        layout: { type: 'spring', stiffness: 500, damping: 30, mass: 0.8 },
+        layout: { type: 'spring', stiffness: 400, damping: 40, mass: 1.2 },
         opacity: { duration: 0.2 }
       }}
       whileHover={isTop ? { y: -8, scale: 1.02 } : {}}
@@ -137,33 +138,45 @@ const StudyBackgroundStack = () => {
    ══════════════════════════════════════ */
 const ActiveFlashcard = ({ card, isFlipped, onFlip }) => {
   const [showExplanation, setShowExplanation] = useState(false);
+  const controls = useAnimation();
 
   useEffect(() => {
     setShowExplanation(false);
-  }, [card.id]);
+    controls.start({
+      scale: [0.9, 1.05, 1],
+      transition: { duration: 0.4, ease: "easeOut" }
+    });
+  }, [card.id, controls]);
+
+  const handleFlip = async () => {
+    await controls.start({
+      scale: [1, 1.1, 0.95, 1],
+      transition: { duration: 0.3 }
+    });
+    onFlip();
+  };
 
   return (
     <motion.div
       layoutId={`card-${card.id}`}
-      layout="position"
       className="flashcard-container"
-      initial={false}
-      animate={{ opacity: 1, x: 0, y: 0 }}
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
       exit={{ 
         opacity: 0,
         scale: 0.9,
-        transition: { duration: 0.2 } 
+        transition: { duration: 0.15 } 
       }}
       transition={{ 
         type: 'spring', 
-        stiffness: 500, 
+        stiffness: 400, 
         damping: 40,
-        mass: 1
+        mass: 1.2
       }}
     >
       <motion.div 
         className="flashcard" 
-        onClick={onFlip}
+        onClick={handleFlip}
         initial={false}
         animate={{ rotateY: isFlipped ? 180 : 0 }}
         transition={{ 
@@ -197,7 +210,9 @@ const ActiveFlashcard = ({ card, isFlipped, onFlip }) => {
 
           <div className="card-center-focus technical-front">
             <div className="question-type-label">
-              <span className="type-badge">{card.tipo || 'O que é?'} ↑</span>
+              <span className="type-badge">
+                {card.tipo || card.categoria || 'O que é?'} ↑
+              </span>
             </div>
             
             <div className="main-question-container">
@@ -278,7 +293,7 @@ const ActiveFlashcard = ({ card, isFlipped, onFlip }) => {
 /* ══════════════════════════════════════
    MAIN COMPONENT
     ══════════════════════════════════════ */
-const StudyInterface = ({ onExit, flashcards = [], onUpdateCard, configLevels = [] }) => {
+const StudyInterface = ({ onExit, flashcards = [], onUpdateCard, configLevels = [], isCasual = false }) => {
   const normalizedCards = flashcards.map(c => ({
     ...c,
     id: c.id,
@@ -306,15 +321,14 @@ const StudyInterface = ({ onExit, flashcards = [], onUpdateCard, configLevels = 
   const [activeId, setActiveId] = useState(normalizedCards[0]?.id);
   const [isFlipped, setIsFlipped] = useState(false);
   const [studiedCount, setStudiedCount] = useState(0);
-  
-  // Session Configuration & Limits
   const [cargaAtual, setCargaAtual] = useState(0);
+  const [lastFeedback, setLastFeedback] = useState(null);
   const limiteCarga = flashcards.length * 2;
   const [cardStartTime, setCardStartTime] = useState(Date.now());
-  const [evaluationEvent, setEvaluationEvent] = useState(null);
   const [sessionFinished, setSessionFinished] = useState(false);
   const [sessionReason, setSessionReason] = useState('Parabéns!');
   const [showSuccess, setShowSuccess] = useState(null);
+  const [history, setHistory] = useState([]); // Array of { deck, activeId, cargaAtual, studiedCount }
 
   const dynamicTiers = getDynamicTiers(configLevels);
 
@@ -354,8 +368,8 @@ const StudyInterface = ({ onExit, flashcards = [], onUpdateCard, configLevels = 
     );
   }
 
-  const activeCard = deck.find(c => c.id === activeId);
-  const deckCards = deck.filter(c => c.id !== activeId);
+  const activeCard = deck.find(c => String(c.id) === String(activeId));
+  const deckCards = deck.filter(c => String(c.id) !== String(activeId));
   
   // Render entire stack so layout animations track items moving to the back
   const visibleDeck = [...deckCards, ...completedCards];
@@ -367,8 +381,8 @@ const StudyInterface = ({ onExit, flashcards = [], onUpdateCard, configLevels = 
   const handlePromote = (card) => {
     // Apenas coloca na frente, não afeta a Carga.
     setDeck(prev => {
-      const without = prev.filter(c => c.id !== card.id && c.id !== activeId);
-      const oldActive = prev.find(c => c.id === activeId);
+      const without = prev.filter(c => String(c.id) !== String(card.id) && String(c.id) !== String(activeId));
+      const oldActive = prev.find(c => String(c.id) === String(activeId));
       return [card, ...without, oldActive].filter(Boolean);
     });
     setActiveId(card.id);
@@ -376,9 +390,42 @@ const StudyInterface = ({ onExit, flashcards = [], onUpdateCard, configLevels = 
     setCardStartTime(Date.now());
   };
 
-  const handleEvaluate = (tier) => {
+  const handleGoBack = () => {
+    if (history.length === 0) return;
+    const lastState = history[history.length - 1];
+    setHistory(prev => prev.slice(0, -1));
+    setDeck(lastState.deck);
+    setActiveId(lastState.activeId);
+    setCargaAtual(lastState.carga);
+    setStudiedCount(lastState.count);
+    setIsFlipped(false);
+  };
+
+  const handleGoForward = () => {
+    if (deck.length <= 1) return;
+    
+    // Skip logic: move current to the back of the deck
+    const currentCard = deck.find(c => String(c.id) === String(activeId));
+    const others = deck.filter(c => String(c.id) !== String(activeId));
+    const newDeck = [...others, currentCard];
+    
+    setDeck(newDeck);
+    setActiveId(newDeck[0].id);
+    setIsFlipped(false);
+    setCardStartTime(Date.now());
+  };
+
+  const handleEvaluate = useCallback((tier) => {
+    // Save current state to history before evaluating
+    setHistory(prev => [...prev.slice(-10), { 
+      deck: [...deck], 
+      activeId, 
+      carga: cargaAtual, 
+      count: studiedCount 
+    }]);
+
     const type = tier.type;
-    setEvaluationEvent({ type, timestamp: Date.now() });
+    // Removed crashing setEvaluationEvent call
 
     // Calcula tempo gasto na sessão para este card (em minutos)
     const elapsedMs = Date.now() - cardStartTime;
@@ -413,7 +460,7 @@ const StudyInterface = ({ onExit, flashcards = [], onUpdateCard, configLevels = 
       });
     }
 
-    const without = deck.filter(c => c.id !== activeId);
+    const without = deck.filter(c => String(c.id) !== String(activeId));
     let newDeckList;
     
     // Cálculo de aparições para a mesma sessão baseado no Nível
@@ -462,7 +509,38 @@ const StudyInterface = ({ onExit, flashcards = [], onUpdateCard, configLevels = 
     setActiveId(newDeckList[0].id);
     setIsFlipped(false);
     setCardStartTime(Date.now());
-  };
+    
+    // Trigger visual feedback effect
+    setLastFeedback({
+      label: tier.label,
+      timestamp: Date.now()
+    });
+  }, [activeCard, activeId, cardStartTime, deck, history, cargaAtual, studiedCount, limiteCarga, onUpdateCard]);
+
+  // Keyboard Shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      // Don't trigger if inside an input/textarea
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+
+      if (e.code === 'Space') {
+        e.preventDefault();
+        if (!isFlipped) {
+          setIsFlipped(true);
+        }
+      } else if (e.key.toLowerCase() === 'd') {
+        handleGoForward();
+      } else if (isFlipped && e.key >= '1' && e.key <= '5') {
+        const index = parseInt(e.key) - 1;
+        if (dynamicTiers[index]) {
+          handleEvaluate(dynamicTiers[index]);
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isFlipped, dynamicTiers, handleEvaluate]);
 
   return (
     <div className="study-interface premium-theme">
@@ -472,8 +550,10 @@ const StudyInterface = ({ onExit, flashcards = [], onUpdateCard, configLevels = 
       <header className="study-header">
         <div className="header-brand">
           <div className="brand-logo">❂</div>
-          <span className="brand-text">Mindful Scholar</span>
+          <span className="brand-text">Flashcards</span>
+          {isCasual && <span className="casual-badge">REVISÃO SEM COMPROMISSO</span>}
         </div>
+
 
         <div className="header-center">
           <div className="progress-group">
@@ -499,52 +579,79 @@ const StudyInterface = ({ onExit, flashcards = [], onUpdateCard, configLevels = 
       <main className="study-main-layout">
         {/* Left: Active Card */}
         <div className="study-content-area">
+          <SubtleFeedbackEffects event={lastFeedback} />
           {/* Card Overlap Zone: All children here stack vertically in the same space */}
           <div className="card-stack-centralizer">
-            <StudyBackgroundStack />
-            <AnimatePresence mode="popLayout" initial={false}>
-              {activeCard && (
-                <ActiveFlashcard
-                  key={activeCard.id}
-                  card={activeCard}
-                  isFlipped={isFlipped}
-                  onFlip={() => setIsFlipped(!isFlipped)}
-                />
-              )}
-            </AnimatePresence>
+            <motion.div
+              style={{ width: '100%', height: '100%', display: 'grid', placeItems: 'center' }}
+              animate={lastFeedback && (
+                lastFeedback.label.toLowerCase().includes('auto') || 
+                lastFeedback.label.toLowerCase().includes('rápido') || 
+                lastFeedback.label.toLowerCase().includes('rapido')
+              ) ? {
+                x: [-2, 2, -2, 2, 0],
+                rotate: [-0.5, 0.5, -0.5, 0.5, 0]
+              } : {}}
+              transition={{ duration: 0.3 }}
+            >
+              <StudyBackgroundStack />
+              <AnimatePresence mode="popLayout">
+                {activeCard && (
+                  <ActiveFlashcard
+                    key={activeCard.id}
+                    card={activeCard}
+                    isFlipped={isFlipped}
+                    onFlip={() => setIsFlipped(!isFlipped)}
+                  />
+                )}
+              </AnimatePresence>
+            </motion.div>
           </div>
 
-          <SubtleFeedbackEffects event={evaluationEvent} />
 
-          {/* Footer: SRS Controls - Fixed at the bottom to avoid pushing the cards */}
           <footer className="study-controls">
-            <AnimatePresence>
-              {isFlipped && (
-                <motion.div
-                  initial={{ y: 50, opacity: 0 }}
-                  animate={{ y: 0, opacity: 1 }}
-                  exit={{ y: 50, opacity: 0 }}
-                  className="srs-panel"
-                >
-                  <div className="srs-grid">
-                    {dynamicTiers.map(tier => (
-                      <button
-                        key={tier.id}
-                        className={`srs-btn`}
-                        style={{
-                          '--btn-color': tier.color,
-                        }}
-                        onClick={() => handleEvaluate(tier)}
-                        title={`Carga: +${tier.carga}`}
-                      >
-                        <span className="srs-label">{tier.label}</span>
-                        <span className="srs-desc">{tier.desc}</span>
-                      </button>
-                    ))}
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
+            <div className="nav-controls-wrapper">
+              <button 
+                className={`nav-btn back ${history.length === 0 ? 'disabled' : ''}`}
+                onClick={handleGoBack}
+                disabled={history.length === 0}
+                title="Voltar"
+              >
+                <ChevronLeft size={20} />
+              </button>
+
+              <div className="srs-panel">
+                <div className="srs-grid">
+                  {isFlipped && (
+                    <>
+                      {dynamicTiers.map((tier, idx) => (
+                        <motion.button
+                          key={idx}
+                          whileHover={{ scale: 1.05, translateY: -5 }}
+                          whileTap={{ scale: 0.9 }}
+                          className={`srs-btn ${tier.isLocked ? 'srs-locked' : ''}`}
+                          style={{ '--btn-color': tier.color }}
+                          disabled={tier.isLocked}
+                          onClick={() => handleEvaluate(tier)}
+                        >
+                          <span className="srs-label">{tier.label}</span>
+                          <span className="srs-desc">{tier.desc}</span>
+                          <span className="srs-interval">{tier.interval}</span>
+                        </motion.button>
+                      ))}
+                    </>
+                  )}
+                </div>
+              </div>
+
+              <button 
+                className="nav-btn forward"
+                onClick={handleGoForward}
+                title="Pular"
+              >
+                <ChevronRight size={20} />
+              </button>
+            </div>
           </footer>
         </div>
 
@@ -553,22 +660,22 @@ const StudyInterface = ({ onExit, flashcards = [], onUpdateCard, configLevels = 
           <div className="sidebar-header">
             <h3 title="Quantidade de repetições restantes nesta sessão">Próximos</h3>
             <span className="badge">
-              {deckCards.reduce((acc, card) => acc + (card.remainingAppearances || 1), 0)}
+              {deck.filter(c => String(c.id) !== String(activeId)).reduce((acc, card) => acc + (card.remainingAppearances || 1), 0)}
             </span>
           </div>
           <div className="card-stack-area">
             <AnimatePresence>
-              {visibleDeck.map((card, idx) => (
+              {deck.filter(c => String(c.id) !== String(activeId)).slice(0, 10).map((card, idx) => (
                 <StackCard
                   key={card.id}
                   card={card}
                   index={idx}
-                  total={visibleDeck.length}
-                  onPromote={handlePromote}
+                  total={deck.length}
+                  onPromote={() => handlePromote(card)}
                 />
               ))}
             </AnimatePresence>
-            {deckCards.length === 0 && (
+            {deck.filter(c => String(c.id) !== String(activeId)).length === 0 && (
               <div className="empty-stack-msg">Último cartão!</div>
             )}
           </div>
