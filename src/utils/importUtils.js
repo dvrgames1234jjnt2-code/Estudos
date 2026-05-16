@@ -1,5 +1,3 @@
-import { createCardInNotion } from '../services/notionService';
-
 /**
  * Parses a TSV string into an array of card objects.
  * Assumes the first row is headers.
@@ -89,30 +87,4 @@ export function parsePastedTextToCards(text, meta) {
   }
 
   return cards;
-}
-
-/**
- * Handles bulk import from raw pasted text.
- */
-export async function handleRawTextImport(text, meta, onProgress, onComplete) {
-  const cardsToImport = parsePastedTextToCards(text, meta);
-  const total = cardsToImport.length;
-  let successCount = 0;
-
-  if (total === 0) {
-    alert("Nenhum dado válido encontrado. Use o formato: Pergunta ; Resposta");
-    onComplete(0, 0);
-    return;
-  }
-
-  for (let i = 0; i < total; i++) {
-    onProgress(i + 1, total);
-    const result = await createCardInNotion(cardsToImport[i]);
-    if (result) successCount++;
-    
-    // Safety delay
-    await new Promise(resolve => setTimeout(resolve, 350));
-  }
-
-  onComplete(successCount, total);
 }

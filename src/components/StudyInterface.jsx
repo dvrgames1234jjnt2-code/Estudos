@@ -75,7 +75,7 @@ const StackCard = ({ card, index, total, onPromote }) => {
       layoutId={`card-${card.id}`}
       className={`stack-card ${isTop ? 'is-top' : ''}`}
       style={{
-        zIndex: total - index,
+        zIndex: (total || 0) - index,
         top: stackOffsetY,
         scale: stackScale,
         rotate: isTop ? dragRotate : stackRotate,
@@ -216,7 +216,7 @@ const ActiveFlashcard = ({ card, isFlipped, onFlip }) => {
             </div>
             
             <div className="main-question-container">
-              <h2 className="card-question-bold">{card.front}</h2>
+              <h2 className="card-question-bold" dangerouslySetInnerHTML={{ __html: card.front }}></h2>
             </div>
           </div>
 
@@ -235,7 +235,7 @@ const ActiveFlashcard = ({ card, isFlipped, onFlip }) => {
               className="back-context-question-wrapper"
             >
               <span className="back-context-label">Contexto</span>
-              <p className="back-context-text">{card.front}</p>
+              <p className="back-context-text" dangerouslySetInnerHTML={{ __html: card.front }}></p>
             </motion.div>
 
             <motion.div 
@@ -247,8 +247,8 @@ const ActiveFlashcard = ({ card, isFlipped, onFlip }) => {
                 layout 
                 transition={{ type: 'spring', stiffness: 500, damping: 40 }}
                 className="card-answer-centered"
+                dangerouslySetInnerHTML={{ __html: card.back }}
               >
-                {card.back}
               </motion.div>
               
               <AnimatePresence mode="popLayout">
@@ -263,8 +263,8 @@ const ActiveFlashcard = ({ card, isFlipped, onFlip }) => {
                       opacity: { duration: 0.15 },
                       layout: { type: 'spring', stiffness: 500, damping: 40 }
                     }}
+                    dangerouslySetInnerHTML={{ __html: card.explicacao }}
                   >
-                    {card.explicacao}
                   </motion.div>
                 )}
               </AnimatePresence>
@@ -334,12 +334,13 @@ const StudyInterface = ({ onExit, flashcards = [], onUpdateCard, configLevels = 
 
   if (!activeId || (deck.length === 0 && !sessionFinished)) {
     return (
-      <div className="study-container empty-state">
-        <div className="glass-card premium-shadow">
-          <div className="empty-icon">🏜️</div>
-          <h2>Nenhum Flashcard Encontrado</h2>
-          <p>Adicione cartões no Notion para começar sua jornada.</p>
-          <button className="premium-btn" onClick={onExit}>Voltar ao Dashboard</button>
+      <div className="study-interface premium-theme empty-state">
+        <div className="study-ambient-glow" />
+        <div className="glass-card premium-shadow" style={{ maxWidth: '500px', margin: 'auto', textAlign: 'center', padding: '40px', marginTop: '20vh' }}>
+          <div style={{ fontSize: '4rem', marginBottom: '20px' }}>🏜️</div>
+          <h2 style={{ fontSize: '1.8rem', fontWeight: '800', marginBottom: '16px' }}>Nenhum Flashcard Encontrado</h2>
+          <p style={{ color: 'var(--text-muted)', marginBottom: '32px', fontSize: '1.1rem' }}>Adicione cartões no Supabase ou selecione um tópico com cards para começar.</p>
+          <button className="btn-expandir" style={{ height: '56px', padding: '0 32px' }} onClick={onExit}>Voltar ao Dashboard</button>
         </div>
       </div>
     );

@@ -7,7 +7,7 @@ export default function SubtleFeedbackEffects({ event }) {
   useEffect(() => {
     if (event?.timestamp) {
       setActiveEvent(event);
-      const timer = setTimeout(() => setActiveEvent(null), 1200);
+      const timer = setTimeout(() => setActiveEvent(null), 3000);
       return () => clearTimeout(timer);
     }
   }, [event]);
@@ -132,7 +132,7 @@ function FloatingText({ text, subtext, type }) {
         scale: [0.2, 2, 1.5, 1],
         rotate: [-15, 5, 0]
       }}
-      transition={{ duration: 1.2, ease: "backOut" }}
+      transition={{ duration: 2.5, ease: "backOut" }}
       style={{
         position: 'absolute',
         inset: 0,
@@ -207,7 +207,7 @@ function SubtleConfetti({ colorPalette = ['#2ECC71', '#27AE60', '#A9DFBF'], coun
               opacity: [1, 1, 0]
             }}
             transition={{ 
-              duration: 1.0,
+              duration: 2.0,
               ease: "circOut",
               delay: Math.random() * 0.1
             }}
@@ -245,7 +245,7 @@ function SubtlePulse() {
       className="subtle-pulse-ring"
       initial={{ scale: 0.8, opacity: 0.5 }}
       animate={{ scale: 2, opacity: 0 }}
-      transition={{ duration: 0.8, ease: "easeOut" }}
+      transition={{ duration: 1.5, ease: "easeOut" }}
     />
   );
 }
@@ -257,7 +257,7 @@ function SubtleImpact() {
       className="subtle-error-vignette"
       initial={{ opacity: 0 }}
       animate={{ opacity: [0, 0.15, 0] }}
-      transition={{ duration: 0.4 }}
+      transition={{ duration: 1.2 }}
     />
   );
 }
