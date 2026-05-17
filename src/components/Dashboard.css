@@ -447,38 +447,38 @@
 
 /* ════════ DECK LIST ════════ */
 .deck-list {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-  gap: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
 .deck-item {
   display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  padding: 24px;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 20px;
   background: rgba(255, 255, 255, 0.03);
-  border-radius: 20px;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  border-radius: 14px;
+  transition: all 0.2s ease;
   cursor: pointer;
   border: 1px solid rgba(255, 255, 255, 0.05);
   position: relative;
   overflow: hidden;
-  height: 100%;
 }
 
 .deck-item:hover {
   background: rgba(255, 255, 255, 0.06);
-  border-color: var(--accent-primary);
-  transform: translateY(-5px);
-  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.3);
+  border-color: rgba(99, 102, 241, 0.3);
+  transform: translateX(4px);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
 }
 
 .deck-main-info {
   display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 16px;
+  flex-direction: row;
+  align-items: center;
+  gap: 14px;
   width: 100%;
 }
 

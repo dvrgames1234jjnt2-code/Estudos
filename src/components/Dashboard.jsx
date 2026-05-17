@@ -128,24 +128,25 @@ const HierarchyItem = ({ item, onSelect, index }) => {
   
   return (
     <motion.div 
-      className={`deck-item ${hasChildren ? 'collection' : ''}`}
+      className={`deck-item list-style ${hasChildren ? 'collection' : ''}`}
       onClick={() => onSelect(item)}
-      whileHover={{ y: -5 }}
+      whileHover={{ x: 4 }}
       layout
     >
       <div className="deck-main-info">
-        <div className={`deck-icon-box ${colorClass}`}>
-          {hasChildren ? <BookOpen size={24} /> : <Sparkles size={24} />}
+        <div className={`deck-icon-box ${colorClass}`} style={{ width: '40px', height: '40px', flexShrink: 0 }}>
+          {hasChildren ? <BookOpen size={20} /> : <Sparkles size={20} />}
         </div>
         <div className="deck-meta">
-          <h4 className="deck-title" style={{ margin: 0, fontSize: '1.1rem', color: '#fff' }}>{item.name}</h4>
-          <span className="deck-subtitle" style={{ fontSize: '0.85rem', color: 'rgba(255,255,255,0.5)', marginTop: '4px' }}>
+          <h4 className="deck-title" style={{ margin: 0, fontSize: '1rem', color: '#fff' }}>{item.name}</h4>
+          <span className="deck-subtitle" style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.5)', marginTop: '2px' }}>
             {hasChildren ? `${Object.keys(item.children).length} sub-itens • ` : ''}
             {item.cards.length} cartões
-            {dueCount > 0 && <span style={{ color: 'var(--accent-primary)', fontWeight: 'bold' }}> • {dueCount} hoje</span>}
+            {dueCount > 0 && <span style={{ color: 'var(--accent-primary)', fontWeight: 'bold' }}> • {dueCount} pendentes</span>}
           </span>
         </div>
       </div>
+      <ChevronRight size={16} style={{ color: 'rgba(255,255,255,0.2)', flexShrink: 0 }} />
     </motion.div>
   );
 };
@@ -426,7 +427,12 @@ const Dashboard = ({ onStartStudy }) => {
               const hasCardsHere = currentLevel && currentLevel.cards.length > 0;
 
               if (hasSubDecks) {
-                return Object.entries(currentLevel.children).map(([name, data], idx) => (
+                const sortedEntries = Object.entries(currentLevel.children).sort(([nameA], [nameB]) => {
+                  const numA = parseInt(nameA.match(/^(\d+)/)?.[1] ?? '999');
+                  const numB = parseInt(nameB.match(/^(\d+)/)?.[1] ?? '999');
+                  return numA - numB;
+                });
+                return sortedEntries.map(([name, data], idx) => (
                   <HierarchyItem 
                     key={data.fullPath}
                     item={data}
