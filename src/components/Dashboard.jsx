@@ -373,47 +373,49 @@ const Dashboard = ({ onStartStudy }) => {
           >
             Estudados
           </button>
-        </div>          {/* Barra de Navegação (Breadcrumbs) */}
-          <div className="breadcrumbs-container" style={{ 
-            display: 'flex', 
-            alignItems: 'center', 
-            gap: '8px', 
-            marginBottom: '24px',
-            flexWrap: 'wrap',
-            padding: '12px 20px',
-            background: 'rgba(255,255,255,0.02)',
-            borderRadius: '12px',
-            border: '1px solid rgba(255,255,255,0.05)'
-          }}>
-            <button 
-              className="breadcrumb-item"
-              onClick={() => setActiveCollection(null)}
-              style={{ background: 'none', border: 'none', color: activeCollection ? 'var(--text-dim)' : 'var(--accent-primary)', cursor: 'pointer', fontSize: '0.85rem', fontWeight: activeCollection ? '500' : '700', display: 'flex', alignItems: 'center', gap: '4px' }}
-            >
-              <Home size={14} /> Início
-            </button>
-            {activeCollection && activeCollection.split('::').map((part, idx, arr) => (
-              <React.Fragment key={idx}>
-                <span style={{ color: 'rgba(255,255,255,0.2)', fontSize: '0.8rem' }}>/</span>
-                <button 
-                  className="breadcrumb-item"
-                  onClick={() => setActiveCollection(arr.slice(0, idx + 1).join('::'))}
-                  style={{ 
-                    background: 'none', 
-                    border: 'none', 
-                    color: idx === arr.length - 1 ? 'var(--accent-primary)' : 'var(--text-dim)', 
-                    cursor: 'pointer', 
-                    fontSize: '0.85rem', 
-                    fontWeight: idx === arr.length - 1 ? '700' : '500' 
-                  }}
-                >
-                  {part}
-                </button>
-              </React.Fragment>
-            ))}
-          </div>
+        </div>
 
-          <div className="deck-list">
+        {/* Barra de Navegação (Breadcrumbs) */}
+        <div className="breadcrumbs-container" style={{ 
+          display: 'flex', 
+          alignItems: 'center', 
+          gap: '8px', 
+          marginBottom: '24px',
+          flexWrap: 'wrap',
+          padding: '12px 20px',
+          background: 'rgba(255,255,255,0.02)',
+          borderRadius: '12px',
+          border: '1px solid rgba(255,255,255,0.05)'
+        }}>
+          <button 
+            className="breadcrumb-item"
+            onClick={() => setActiveCollection(null)}
+            style={{ background: 'none', border: 'none', color: activeCollection ? 'var(--text-dim)' : 'var(--accent-primary)', cursor: 'pointer', fontSize: '0.85rem', fontWeight: activeCollection ? '500' : '700', display: 'flex', alignItems: 'center', gap: '4px' }}
+          >
+            <Home size={14} /> Início
+          </button>
+          {activeCollection && activeCollection.split('::').map((part, idx, arr) => (
+            <React.Fragment key={idx}>
+              <span style={{ color: 'rgba(255,255,255,0.2)', fontSize: '0.8rem' }}>/</span>
+              <button 
+                className="breadcrumb-item"
+                onClick={() => setActiveCollection(arr.slice(0, idx + 1).join('::'))}
+                style={{ 
+                  background: 'none', 
+                  border: 'none', 
+                  color: idx === arr.length - 1 ? 'var(--accent-primary)' : 'var(--text-dim)', 
+                  cursor: 'pointer', 
+                  fontSize: '0.85rem', 
+                  fontWeight: idx === arr.length - 1 ? '700' : '500' 
+                }}
+              >
+                {part}
+              </button>
+            </React.Fragment>
+          ))}
+        </div>
+
+        <div className="deck-list">
             {(() => {
               const currentLevel = activeCollection ? flatMap[activeCollection] : tree;
               
@@ -427,11 +429,9 @@ const Dashboard = ({ onStartStudy }) => {
               const hasCardsHere = currentLevel && currentLevel.cards.length > 0;
 
               if (hasSubDecks) {
-                const sortedEntries = Object.entries(currentLevel.children).sort(([nameA], [nameB]) => {
-                  const numA = parseInt(nameA.match(/^(\d+)/)?.[1] ?? '999');
-                  const numB = parseInt(nameB.match(/^(\d+)/)?.[1] ?? '999');
-                  return numA - numB;
-                });
+                const sortedEntries = Object.entries(currentLevel.children).sort(([nameA], [nameB]) =>
+                  nameA.localeCompare(nameB, 'pt-BR', { numeric: true, sensitivity: 'base' })
+                );
                 return sortedEntries.map(([name, data], idx) => (
                   <HierarchyItem 
                     key={data.fullPath}
